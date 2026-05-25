@@ -59,6 +59,7 @@ RecordingUploadedWorker
 -> ReminderSuggestionWorker
 -> EmbeddingWorker
 -> TimelineWorker
+-> InsightWorker
 ```
 
 Each worker updates its `AiJob`, creates the next `AiJob`, and enqueues the next queue. Provider calls are still mocked and should be replaced behind the provider interfaces.

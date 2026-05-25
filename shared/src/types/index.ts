@@ -1,4 +1,10 @@
-import { ButtonGesture, CaptureSource, MemoryEventType, RecordingStatus } from '../enums';
+import {
+  ButtonGesture,
+  CaptureSource,
+  InsightType,
+  MemoryEventType,
+  RecordingStatus,
+} from '../enums';
 
 export interface ContextSnapshot {
   timestamp: string;
@@ -24,10 +30,45 @@ export interface MemoryEvent {
   captureSource: CaptureSource;
   recordingId?: string;
   noteId?: string;
+  memoryThreadId?: string;
   contextSnapshotId?: string;
   occurredAt: string;
   title?: string;
   summary?: string;
+  importanceScore?: number;
+  emotionalScore?: number;
+  semanticHash?: string;
+  processingStatus?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MemoryThread {
+  id: string;
+  userId: string;
+  title: string;
+  description?: string;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  notesCount: number;
+  importanceScore: number;
+  unresolvedCount: number;
+  emotionalTrend?: string;
+  semanticClusterId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Insight {
+  id: string;
+  userId: string;
+  type: InsightType;
+  title: string;
+  body: string;
+  relatedThreadId?: string;
+  relatedNoteIds: string[];
+  importanceScore: number;
+  isRead: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -61,4 +102,3 @@ export interface Reminder {
   remindAt: string;
   dismissedAt?: string;
 }
-

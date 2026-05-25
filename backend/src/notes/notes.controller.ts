@@ -1,28 +1,29 @@
 import { Body, Controller, Delete, Get, Param, Patch } from '@nestjs/common';
-import { NotesService } from './notes.service';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { AuthenticatedUser } from '../auth/auth.service';
+import { NotesService, UpdateNoteDto } from './notes.service';
 
 @Controller('notes')
 export class NotesController {
   constructor(private readonly notesService: NotesService) {}
 
   @Get()
-  list() {
-    return this.notesService.list();
+  list(@CurrentUser() user: AuthenticatedUser) {
+    return this.notesService.list(user.supabaseUserId);
   }
 
   @Get(':id')
-  get(@Param('id') id: string) {
-    return this.notesService.get(id);
+  get(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.notesService.get(user.supabaseUserId, id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: Record<string, unknown>) {
-    return this.notesService.update(id, dto);
+  update(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: UpdateNoteDto) {
+    return this.notesService.update(user.supabaseUserId, id, dto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.notesService.remove(id);
+  remove(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.notesService.remove(user.supabaseUserId, id);
   }
 }
-

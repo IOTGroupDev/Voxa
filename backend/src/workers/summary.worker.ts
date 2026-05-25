@@ -39,8 +39,10 @@ export class SummaryWorker extends WorkerHost {
     await this.prisma.memoryEvent.update({
       where: { id: memoryEventId },
       data: {
+        noteId: note.id,
         title: note.title,
         summary: note.summary,
+        processingStatus: 'summary_created',
       },
     });
 

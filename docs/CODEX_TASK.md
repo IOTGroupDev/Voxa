@@ -1,103 +1,303 @@
-# Codex Task: AI Memory App with Bluetooth Microphone Dongle
+# VOXA — AI MEMORY SYSTEM WITH BLUETOOTH VOICE DONGL E
+# MASTER CODEX TASK
+# REPLACE PREVIOUS TASKS WITH THIS FILE
 
-## Product
+---
 
-We are building a standalone AI memory/logging app with a small physical Bluetooth dongle.
+# PRODUCT VISION
 
-This is NOT AstraLink.  
-This is NOT Reflecta.
+Voxa is NOT:
 
-The product is not just STT notes.
+- a chatbot;
+- a диктофон;
+- a productivity tracker;
+- a second-brain clone;
+- a generic AI notes app.
 
-The goal is to create an external memory system:
+Voxa is:
+
+> a continuity memory system.
+
+The product helps users capture thoughts instantly through voice and gradually builds a long-term contextual memory layer over time.
+
+Core philosophy:
 
 ```txt
-voice capture
+capture
 → context
 → meaning
-→ actions
-→ timeline
-→ reminders
-→ searchable memory
-Core Product Idea
+→ memory
+→ continuity
+→ resurfacing
+→ insight
 
-The hardware dongle has:
+The main value is NOT transcription.
+
+The main value is:
+
+continuity of thoughts;
+recurring themes;
+long-term memory;
+semantic connections;
+unresolved ideas;
+contextual resurfacing;
+cognitive augmentation.
+
+The system should feel:
+
+calm;
+personal;
+private;
+minimal;
+invisible;
+low-friction.
+
+Avoid enterprise/productivity UX patterns.
+
+CRITICAL PRODUCT RULES
+
+IMPORTANT:
+
+Do NOT design Voxa around conversational AI.
+
+This is NOT a chatbot product.
+
+Primary UX:
+
+capture
+→ memory
+→ retrieval
+→ insight
+
+NOT:
+
+question
+→ AI answer
+
+Avoid:
+
+chat-centric UX;
+copilot UI patterns;
+kanban boards;
+gamification;
+aggressive notifications;
+enterprise dashboards;
+productivity obsession.
+
+The app should feel like:
+
+a second layer of memory.
+
+HARDWARE CONCEPT
+
+The system includes:
+
+Bluetooth voice dongle
+
+Hardware contains:
 
 microphone;
 physical button;
 Bluetooth audio connection;
-BLE control channel;
+BLE control service;
 battery;
 LED/vibration indicator.
 
-For MVP, the dongle works only when connected to the phone.
+The dongle exists to reduce friction.
 
-The phone is responsible for:
+Goal:
 
-receiving audio from the dongle;
-recording/buffering audio;
-uploading audio to backend;
-collecting context;
-displaying notes, actions, timeline and search.
+press button
+→ speak
+→ release
+→ continue life
 
-The backend is responsible for:
+The phone handles:
 
-auth validation;
-storage orchestration;
-AI pipeline;
-event processing;
-timeline generation;
-search.
-Important MVP Decisions
+recording;
+context collection;
+local storage/cache;
+upload;
+visualization;
+memory timeline.
+IMPORTANT MVP DECISIONS
 
-Do NOT implement:
+MVP MUST NOT include:
 
-offline audio storage on dongle;
-BLE file synchronization;
-audio chunk manifest;
-sync resume;
-onboard AI;
 always-on recording;
 stealth recording;
-realtime transcription.
+hidden recording;
+realtime transcription;
+onboard AI;
+BLE file transfer;
+offline dongle storage;
+complex synchronization;
+custom BLE audio streaming;
+production-grade BLE firmware;
+subscriptions;
+enterprise infrastructure.
 
-Do implement architecture for:
+MVP MUST include architecture for:
 
 Bluetooth microphone input;
 BLE button events;
+capture sessions;
 Memory Events;
 AI summaries;
+semantic memory;
 action extraction;
 reminders;
 timeline;
-semantic search.
-Architecture
-Bluetooth Dongle
-  ├─ Bluetooth audio profile for microphone
-  └─ BLE service for button/battery/status
+semantic search;
+insight generation.
+PRODUCT EXPERIENCE
 
-Mobile App
-  ├─ audio recording
-  ├─ BLE control connection
-  ├─ local queue/cache
-  ├─ context collection
-  └─ upload to backend
+The user should feel:
 
-Backend
-  ├─ Supabase Auth JWT validation
-  ├─ Supabase Storage orchestration
-  ├─ Postgres/Prisma data model
-  ├─ BullMQ queues
-  ├─ AI pipeline
-  └─ timeline/search/actions
-Repository Structure
+Voxa remembers my thoughts across time.
 
-Use simple light-monorepo structure:
+NOT:
 
-/mobile
-/backend
-/shared
-/docs
+Voxa is an AI assistant.
+HIGH LEVEL ARCHITECTURE
+Hybrid Local-First Architecture
+
+MVP architecture should follow hybrid local-first principles.
+
+Local responsibilities
+
+Mobile app handles:
+
+capture;
+recording;
+local queue;
+local cache;
+temporary offline storage;
+timeline rendering;
+basic recent memory links;
+device state;
+BLE control.
+
+The app must remain usable without immediate backend access.
+
+Backend responsibilities
+
+Backend handles:
+
+AI enrichment;
+transcription;
+embeddings;
+long-term memory graph;
+semantic search;
+reminders;
+summaries;
+action extraction;
+insight generation;
+timeline processing.
+
+The backend is:
+
+enhancement layer, not hard dependency for capture UX.
+
+CORE DOMAIN MODEL
+
+The primary entity is NOT Recording.
+
+The primary entity is:
+
+MemoryEvent
+
+A MemoryEvent combines:
+
+audio
++ timestamp
++ context
++ gesture
++ intent
++ AI interpretation
++ semantic meaning
+
+Examples:
+
+Gesture	Meaning
+single press	quick note
+double press	task/action
+long press	important
+hold	recording while held
+manual app record	manual capture
+MEMORY THREADS
+
+The system must build long-term thematic threads.
+
+Examples:
+
+"hardware ideas"
+"privacy concerns"
+"voice workflows"
+"unfinished project"
+"startup direction"
+"relationship reflections"
+
+Each thread tracks:
+
+first appearance;
+latest activity;
+frequency;
+unresolved questions;
+progress;
+emotional tone;
+semantic similarity.
+INSIGHT ENGINE
+
+Insights are extremely important.
+
+Insights must be:
+
+rare;
+meaningful;
+contextual;
+non-spammy.
+
+The AI should speak rarely but intelligently.
+
+Examples:
+
+"You returned to this idea 7 times in 2 months."
+
+"This thought is highly similar to a note from May 12."
+
+"Most recordings about Voxa contain the same unresolved issue: battery, privacy and BLE UX."
+
+"This appears to be a long-term recurring direction rather than a temporary idea."
+UX PRINCIPLES
+
+The app should feel:
+
+calm;
+thoughtful;
+quiet;
+personal;
+emotionally neutral;
+respectful.
+
+Do NOT optimize for:
+
+dopamine;
+engagement addiction;
+notification spam;
+productivity pressure.
+
+The app should NOT feel like:
+
+Jira;
+Slack;
+Notion;
+ChatGPT wrapper;
+CRM;
+corporate dashboard.
+MONOREPO STRUCTURE
+
+Use SIMPLE monorepo structure only.
 
 Do NOT use:
 
@@ -107,14 +307,13 @@ Kubernetes;
 microservices;
 complex workspace tooling.
 
-Shared code should be limited to:
+Structure:
 
-TypeScript types;
-DTOs;
-enums;
-constants;
-API contracts.
-Tech Stack
+/mobile
+/backend
+/shared
+/docs
+TECH STACK
 Mobile
 
 Use:
@@ -125,11 +324,12 @@ TypeScript;
 Zustand;
 React Query;
 Supabase client;
-Bluetooth/BLE abstraction layer.
+SQLite;
+Bluetooth abstraction layer.
 
-Create architecture and mock implementations first.
+Create architecture and mocks first.
 
-Do not implement production native BLE/audio integration yet.
+Do NOT implement production native BLE/audio integration yet.
 
 Backend
 
@@ -143,52 +343,84 @@ Supabase Postgres;
 Supabase Storage;
 Redis;
 BullMQ.
-AI
+AI PROVIDER ARCHITECTURE
 
-Create provider abstractions for:
+Do NOT hardcode one provider.
+
+Create abstractions for:
 
 speech-to-text;
 summarization;
 embeddings;
+classification;
 action extraction;
-reminder suggestion;
-classification.
+reminder suggestions;
+insight generation.
 
-Do not hardcode one AI provider deeply.
+Interfaces:
 
-Supabase Usage
+interface SpeechToTextProvider {
+  transcribe(audioUri: string): Promise<TranscriptionResult>;
+}
 
-Use Supabase as infrastructure foundation:
+interface SummaryProvider {
+  summarize(text: string): Promise<string>;
+}
 
-Supabase Auth;
-Supabase Postgres;
-Supabase Storage;
+interface EmbeddingProvider {
+  createEmbedding(text: string): Promise<number[]>;
+}
+
+interface ActionExtractionProvider {
+  extract(text: string): Promise<ActionItem[]>;
+}
+
+interface ReminderSuggestionProvider {
+  suggest(text: string): Promise<ReminderSuggestion[]>;
+}
+
+interface EventClassificationProvider {
+  classify(text: string): Promise<MemoryEventType>;
+}
+
+Create mock providers.
+
+No production AI integration yet.
+
+SUPABASE
+
+Use Supabase for:
+
+Auth;
+Postgres;
+Storage;
 pgvector;
-RLS policies.
+RLS.
 
-Do NOT build custom authentication.
+Do NOT create custom auth.
 
-The mobile app authenticates through Supabase.
+Flow:
 
-The backend verifies Supabase JWT and exposes product-specific APIs.
-
-Target File Structure
-
-Create or prepare:
-
+Mobile
+→ Supabase Auth
+→ JWT
+→ Backend verifies JWT
+→ Product APIs
+MOBILE STRUCTURE
 /mobile
   /src
     /app
     /features
       /auth
       /capture
-      /recordings
+      /timeline
       /memory-events
+      /memory-threads
       /notes
       /actions
       /reminders
-      /timeline
       /search
+      /insights
       /devices
       /settings
     /lib
@@ -198,9 +430,10 @@ Create or prepare:
       /audio
       /context
       /storage
+      /memory
     /state
     /types
-
+BACKEND STRUCTURE
 /backend
   /src
     /auth
@@ -209,12 +442,14 @@ Create or prepare:
     /capture
     /recordings
     /memory-events
+    /memory-threads
     /transcripts
     /notes
     /actions
     /reminders
     /timeline
     /search
+    /insights
     /ai
     /storage
     /queue
@@ -223,9 +458,10 @@ Create or prepare:
     /config
     app.module.ts
     main.ts
+
   /prisma
     schema.prisma
-
+SHARED STRUCTURE
 /shared
   /src
     /types
@@ -233,117 +469,15 @@ Create or prepare:
     /enums
     /constants
     index.ts
+MAIN DATABASE MODELS
 
-/docs
-Core Domain Model
-
-The main product object is not just Recording.
-
-The main object is:
-
-MemoryEvent
-
-A Memory Event combines:
-
-audio
-+ button gesture
-+ timestamp
-+ context
-+ intent
-+ AI interpretation
-
-Examples:
-
-single press      → quick memory capture
-double press      → task/action capture
-long press        → important memory
-press and hold    → record while held
-manual app record → manual capture
-Shared Enums
-
-Create shared enums for:
-
-export enum MemoryEventType {
-  QUICK_NOTE = 'quick_note',
-  TASK = 'task',
-  IDEA = 'idea',
-  IMPORTANT = 'important',
-  REFLECTION = 'reflection',
-  MEETING = 'meeting',
-  MANUAL = 'manual',
-}
-
-export enum CaptureSource {
-  DONGLE = 'dongle',
-  MOBILE_APP = 'mobile_app',
-}
-
-export enum ButtonGesture {
-  SINGLE_PRESS = 'single_press',
-  DOUBLE_PRESS = 'double_press',
-  LONG_PRESS = 'long_press',
-  PRESS_AND_HOLD = 'press_and_hold',
-}
-
-export enum RecordingStatus {
-  CREATED = 'created',
-  RECORDING = 'recording',
-  UPLOADING = 'uploading',
-  UPLOADED = 'uploaded',
-  PROCESSING = 'processing',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-  DELETED = 'deleted',
-}
-
-export enum AiJobStatus {
-  PENDING = 'pending',
-  PROCESSING = 'processing',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-  RETRYING = 'retrying',
-  CANCELLED = 'cancelled',
-}
-Backend Modules
-
-Create skeleton NestJS modules for:
-
-auth
-users
-devices
-capture
-recordings
-memory-events
-transcripts
-notes
-actions
-reminders
-timeline
-search
-ai
-storage
-queue
-workers
-privacy
-
-Each module should include:
-
-module file;
-service file;
-controller file where applicable;
-DTOs where useful;
-TODO comments for implementation.
-
-Do not implement full business logic yet.
-
-Database Schema Draft
-
-Create Prisma schema draft for:
+Create Prisma draft schema for:
 
 User
 Device
 Recording
 MemoryEvent
+MemoryThread
 ContextSnapshot
 Transcript
 Note
@@ -352,53 +486,95 @@ Tag
 NoteTag
 ActionItem
 Reminder
+Insight
 DailySummary
 AiJob
 SyncItem
 
-Each table/model should include:
+All models require:
 
 id;
-user ownership;
 timestamps;
-relations;
+ownership;
 indexes;
-status fields where needed.
+status fields;
+relations.
+MEMORY EVENT MODEL
 
-Important relationships:
+MemoryEvent includes:
 
-User -> Device[]
-User -> Recording[]
-User -> MemoryEvent[]
-MemoryEvent -> Recording?
-MemoryEvent -> ContextSnapshot?
-MemoryEvent -> Note?
-Note -> ActionItem[]
-Note -> Reminder[]
-Note -> NoteChunk[]
-Context Snapshot
+recording_id
+user_id
+event_type
+capture_source
+button_gesture
+transcript_id
+note_id
+context_snapshot_id
+summary
+importance_score
+emotional_score optional
+semantic_hash optional
+processing_status
+MEMORY THREAD MODEL
 
-Add model/interface for context collected by mobile app:
+Tracks recurring semantic themes.
 
-ContextSnapshot
+Fields:
 
-It may include:
+title
+description
+first_seen_at
+last_seen_at
+notes_count
+importance_score
+unresolved_count
+emotional_trend optional
+semantic_cluster_id optional
+INSIGHT MODEL
+
+Insights are generated rarely.
+
+Types:
+
+recurring_theme
+unresolved_question
+similar_past_note
+project_direction
+emotional_pattern
+forgotten_task
+decision_needed
+
+Fields:
+
+title
+body
+type
+related_thread_id
+related_note_ids
+importance_score
+is_read
+CONTEXT SNAPSHOT
+
+Collect limited privacy-first context.
+
+Possible fields:
 
 timestamp
 timezone
 location optional
-calendar_context optional
 device_state
 app_state
 capture_source
 button_gesture
 nearby_device_id
-user_selected_project optional
+selected_project optional
 
-Do not over-collect sensitive data.
-Use privacy-first defaults.
+Do NOT overcollect personal data.
 
-Storage
+Privacy-first defaults only.
+
+STORAGE
 
 Use Supabase Storage.
 
@@ -407,22 +583,30 @@ Buckets:
 audio-private
 user-media
 
-Audio files must be private.
+Audio MUST remain private.
 
-Backend should later generate signed upload/download URLs.
+Backend later generates signed URLs.
 
-For MVP architecture, create:
+Create:
 
-storage service abstraction;
-upload URL endpoint scaffold;
-file metadata model.
-Bluetooth Architecture
+storage abstraction;
+upload URL scaffold;
+metadata model.
+BLUETOOTH ARCHITECTURE
 
-Create mobile abstraction:
+IMPORTANT:
 
+For MVP:
+
+Audio = Bluetooth microphone/audio profile
+Control = BLE custom service
+
+Do NOT design custom BLE audio streaming.
+
+BLE STRUCTURE
 /mobile/src/lib/bluetooth
 
-It should include:
+Contains:
 
 DongleConnection
 DongleControlService
@@ -432,45 +616,26 @@ DongleRecordingState
 BluetoothAudioInput
 MockDongleService
 
-Do not implement real native BLE yet.
+Use TypeScript interfaces + mocks.
 
-Create TypeScript interfaces and mock service.
+No native implementation yet.
 
-Supported dongle states:
-
+SUPPORTED DONGLE STATES
 disconnected
 connecting
 connected
 recording
 low_battery
 error
-
-Supported button events:
-
+SUPPORTED BUTTON EVENTS
 SINGLE_PRESS
 DOUBLE_PRESS
 LONG_PRESS
 PRESS_AND_HOLD_START
 PRESS_AND_HOLD_END
-Bluetooth Design Decision
+BLE SERVICE DESIGN
 
-For MVP architecture, assume:
-
-Audio → Bluetooth microphone/audio profile
-Control → BLE custom service
-
-Do not design custom BLE audio streaming yet.
-
-BLE service is only for:
-
-button events;
-battery;
-connection status;
-recording indicator;
-basic device metadata.
-Expected BLE Service
-
-Document expected BLE service:
+Document:
 
 MemoryDongleControlService
 
@@ -491,27 +656,27 @@ SET_RECORDING_INDICATOR_ON
 SET_RECORDING_INDICATOR_OFF
 VIBRATE
 PING
-Capture Flow
-
-Implement/document MVP flow:
-
+CAPTURE FLOW
 User presses dongle button
-→ mobile receives BLE button event
-→ mobile starts audio recording using Bluetooth microphone input
+→ mobile receives BLE event
+→ mobile starts recording from Bluetooth microphone
 → mobile creates local CaptureSession
 → mobile collects ContextSnapshot
-→ mobile stops recording based on gesture or user action
-→ mobile uploads audio to backend/Supabase Storage
-→ backend creates Recording and MemoryEvent
-→ backend enqueues AI pipeline
-→ transcript is generated
-→ note is generated
-→ action items are extracted
-→ reminders are suggested
-→ timeline is updated
-Mobile MVP Screens
+→ recording stops
+→ audio locally cached
+→ upload queued
+→ backend creates Recording + MemoryEvent
+→ AI pipeline triggered
+→ transcript generated
+→ note generated
+→ actions extracted
+→ reminders suggested
+→ timeline updated
+→ semantic memory updated
+→ insights possibly generated
+MOBILE MVP SCREENS
 
-Create placeholder screens/components for:
+Create placeholders + architecture for:
 
 Auth
 Home
@@ -519,48 +684,81 @@ Capture
 Timeline
 MemoryEventDetails
 NoteDetails
+MemoryThreads
+Insights
 Actions
 Reminders
 Search
 DeviceManagement
 Settings
 
-Do not implement final UI.
-Create clean placeholders and navigation-ready structure.
+Do NOT create polished UI yet.
 
-Mobile Features
+Navigation-ready placeholders only.
 
-Create architecture for:
+TIMELINE EXPERIENCE
 
-auth session
-device pairing
-dongle status
-recording session
-local upload queue
-capture history
-timeline
-actions inbox
-reminder suggestions
-semantic search
-settings/privacy
-AI Pipeline
+Timeline is NOT just recordings.
 
-Create backend AI abstraction:
+Timeline should feel like:
 
-SpeechToTextProvider
-SummaryProvider
-EmbeddingProvider
-ActionExtractionProvider
-ReminderSuggestionProvider
-EventClassificationProvider
+semantic history of thoughts.
+
+Each item may show:
+
+summary;
+tags;
+related memories;
+importance;
+unresolved state;
+related thread;
+semantic resurfacing.
+MEMORY ENGINE
+
+Create:
+
+memory.service.ts
+
+Responsibilities:
+
+process new event;
+normalize transcript;
+generate summary;
+extract tags;
+classify type;
+find similar memories;
+attach to thread;
+update thread statistics;
+generate insight if needed.
+INSIGHT ENGINE
+
+Create:
+
+insight.service.ts
+
+Rules:
+
+Generate insights ONLY if:
+
+recurring topic detected;
+strong semantic similarity;
+unresolved issue repeated;
+important note pattern found;
+user explicitly marked importance.
+
+Insights must remain low-frequency.
+
+AI PIPELINE
 
 Create worker skeletons:
 
 transcription.worker.ts
 summary.worker.ts
 embedding.worker.ts
+classification.worker.ts
 action-extraction.worker.ts
 reminder-suggestion.worker.ts
+insight.worker.ts
 timeline.worker.ts
 cleanup.worker.ts
 
@@ -575,15 +773,27 @@ recording_uploaded
 → reminder_suggestion_queue
 → embedding_queue
 → timeline_update_queue
+→ insight_queue
 → completed
 
-No real provider integration yet.
+No real AI provider implementation yet.
 
-Add TODO comments for OpenAI/Whisper-compatible/STT provider.
+Use TODO markers.
 
-API Contract
+MOBILE LOCAL-FIRST BEHAVIOR
 
-Document and scaffold REST API endpoints.
+Capture must work even if backend unavailable.
+
+Requirements:
+
+local recording cache;
+upload queue;
+retry logic;
+temporary local timeline;
+graceful offline behavior.
+API CONTRACT
+
+Scaffold/document endpoints.
 
 Users
 GET /users/me
@@ -633,49 +843,50 @@ AI
 POST /ai/reprocess/:recordingId
 POST /ai/reprocess-event/:eventId
 
-For documentation include:
+Document:
 
 purpose;
 request body;
 response body;
-auth requirement;
-possible errors.
-Security and Privacy
+auth requirements;
+errors.
+SECURITY & PRIVACY
 
-Architecture must support:
+Architecture MUST support:
 
 encrypted transport;
 private audio storage;
-Supabase RLS by user_id;
-optional audio auto-delete after transcription;
-user data export;
-account deletion;
+RLS by user_id;
+optional audio deletion;
+export/delete account;
+explicit permissions;
+visible recording indicators;
 no stealth recording;
-visible recording indicator;
-no always-on recording in MVP;
-explicit permission model for microphone and Bluetooth;
-user-controlled retention settings.
+no always-on recording;
+user retention settings.
 
-Important:
+IMPORTANT:
 
-The app must clearly communicate when recording is active.
+Recording state must always be visible.
 
-The device should have LED or vibration indication for recording state.
+Dongle should provide:
 
-RLS Policy Documentation
+LED indication;
+or vibration indication.
+RLS POLICY STYLE
 
-Document intended Supabase RLS policy style:
+Document intended policy style:
 
 user_id = auth.uid()
 
-For all user-owned tables.
+For all user-owned entities.
 
-For Storage:
+Storage:
 
-private bucket;
-path should include user id;
-user can access only own files.
-Documentation Deliverables
+private buckets;
+path contains user_id;
+access only to own files.
+DOCUMENTATION FILES
 
 Create:
 
@@ -686,88 +897,72 @@ Create:
 /docs/bluetooth-protocol.md
 /docs/ai-pipeline.md
 /docs/security-privacy.md
+/docs/memory-engine.md
 /docs/mvp-roadmap.md
 /docs/codex-notes.md
 README
 
-Create or update README with:
+README must explain:
 
-product overview
-architecture overview
-folder structure
-local development plan
-environment variables
-next implementation steps
-MVP Scope
+product philosophy;
+architecture;
+structure;
+local development;
+env variables;
+next implementation steps.
+QUALITY REQUIREMENTS
 
-MVP includes:
+Keep architecture:
 
-Supabase Auth architecture;
-Bluetooth dongle abstraction;
-mock dongle events;
-Bluetooth microphone input architecture;
-manual app recording architecture;
-capture sessions;
-Memory Events;
-audio upload architecture;
-transcription job architecture;
-AI summary architecture;
-action item extraction architecture;
-reminder suggestion architecture;
-timeline architecture;
-semantic search architecture;
-privacy settings architecture.
+realistic;
+simple;
+maintainable;
+modular;
+production-oriented.
 
-MVP does NOT include:
+Avoid:
 
-production BLE implementation;
-production Bluetooth audio implementation;
-offline dongle storage;
-BLE file synchronization;
-realtime transcription;
-always-on recording;
-stealth recording;
-speaker diarization;
-edge AI on dongle;
-subscriptions;
-hardware OTA implementation;
-polished final UI.
-Quality Requirements
-Keep architecture realistic.
-Keep structure simple.
-Avoid enterprise complexity.
-Do not add TurboRepo/NX.
-Do not add Kubernetes.
-Use TypeScript.
-Use clean module boundaries.
-Prefer readable code over clever abstractions.
-Add TODO markers.
-Add short README instructions.
-Do not break existing project if repo already has files.
-Prefer mock interfaces over fake incomplete production implementations.
-Definition of Done
+enterprise overengineering;
+premature abstractions;
+fake production implementations.
 
-The task is complete when:
+Prefer:
 
-Project structure exists.
-Docs are created.
-Backend module skeleton exists.
-Prisma schema draft exists.
-Shared types/enums/DTOs exist.
-Bluetooth dongle mock abstraction exists.
-Capture session architecture exists.
-MemoryEvent architecture exists.
-AI worker skeleton exists.
-API contract is documented.
-Security/privacy model is documented.
-README explains how to continue.
-No unnecessary complex monorepo tooling is added.
-Final Response
+mocks;
+interfaces;
+TODO markers;
+clear module boundaries.
 
-After completing, summarize:
+Use:
+
+TypeScript strict mode;
+readable code;
+consistent naming.
+MVP DEFINITION OF DONE
+
+Task complete when:
+
+project structure exists;
+docs exist;
+backend module skeletons exist;
+Prisma schema draft exists;
+shared types/enums/DTOs exist;
+Bluetooth mock abstraction exists;
+capture architecture exists;
+MemoryEvent architecture exists;
+MemoryThread architecture exists;
+Insight architecture exists;
+AI worker skeletons exist;
+API contract documented;
+privacy/security documented;
+README updated;
+no unnecessary tooling added.
+FINAL RESPONSE REQUIREMENTS
+
+After implementation summarize:
 
 files created;
-main architecture decisions;
-what was intentionally left out;
+architecture decisions;
+intentionally skipped parts;
 risks/unknowns;
-next implementation steps.
+next implementation priorities.

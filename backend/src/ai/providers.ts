@@ -24,3 +24,9 @@ export interface EventClassificationProvider {
   classify(input: { text: string }): Promise<{ type: MemoryEventType; confidence: number }>;
 }
 
+export interface InsightGenerationProvider {
+  generateInsight(input: {
+    memoryThreadId: string;
+    recentNoteSummaries: string[];
+  }): Promise<{ title: string; body: string; importanceScore: number } | null>;
+}

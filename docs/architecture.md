@@ -38,6 +38,10 @@ The first implemented backend flow persists users by Supabase JWT subject, creat
 
 Capture completion also creates an `AiJob` and enqueues the first BullMQ step. The current worker path uses a mock transcript and is ready to be replaced by a real speech-to-text provider.
 
+The current functional API surface exposes generated artifacts through notes, actions, reminders, timeline, daily summary, and keyword search endpoints.
+
+The updated master task adds hybrid local-first expectations. Mobile owns capture resilience through local cache, SQLite-backed upload queue, temporary memory state, `expo-sqlite` storage, and network reconnect retry via NetInfo. Backend remains the enrichment layer for transcription, semantic memory, Memory Threads, Insights, and long-term search.
+
 ## Shared
 
 `shared` contains only TypeScript types, DTOs, enums, constants, and API contracts. It should not contain app logic or platform-specific code.

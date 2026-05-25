@@ -12,6 +12,7 @@ export const QUEUE_NAMES = {
   REMINDER_SUGGESTION: 'reminder_suggestion_queue',
   EMBEDDING: 'embedding_queue',
   TIMELINE_UPDATE: 'timeline_update_queue',
+  INSIGHT: 'insight_queue',
   CLEANUP: 'cleanup_queue',
 } as const;
 
@@ -34,4 +35,3 @@ export const BLUETOOTH_SERVICE = {
     'PING',
   ],
 } as const;
-

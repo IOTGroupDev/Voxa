@@ -17,7 +17,10 @@ CREATE TYPE "RecordingStatus" AS ENUM ('created', 'recording', 'uploading', 'upl
 CREATE TYPE "AiJobStatus" AS ENUM ('pending', 'processing', 'completed', 'failed', 'retrying', 'cancelled');
 
 -- CreateEnum
-CREATE TYPE "AiJobType" AS ENUM ('transcription', 'classification', 'summary', 'action_extraction', 'reminder_suggestion', 'embedding', 'timeline_update', 'cleanup');
+CREATE TYPE "AiJobType" AS ENUM ('transcription', 'classification', 'summary', 'action_extraction', 'reminder_suggestion', 'embedding', 'timeline_update', 'insight', 'cleanup');
+
+-- CreateEnum
+CREATE TYPE "InsightType" AS ENUM ('recurring_theme', 'unresolved_question', 'similar_past_note', 'project_direction', 'emotional_pattern', 'forgotten_task', 'decision_needed');
 
 -- CreateEnum
 CREATE TYPE "CaptureSessionStatus" AS ENUM ('active', 'completed', 'cancelled');
@@ -95,7 +98,10 @@ CREATE TABLE "MemoryEvent" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "recordingId" TEXT,
+    "transcriptId" TEXT,
+    "noteId" TEXT,
     "contextSnapshotId" TEXT,
+    "memoryThreadId" TEXT,
     "deviceId" TEXT,
     "type" "MemoryEventType" NOT NULL DEFAULT 'quick_note',
     "captureSource" "CaptureSource" NOT NULL,
@@ -104,10 +110,50 @@ CREATE TABLE "MemoryEvent" (
     "title" TEXT,
     "summary" TEXT,
     "confidence" DOUBLE PRECISION,
+    "importanceScore" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "emotionalScore" DOUBLE PRECISION,
+    "semanticHash" TEXT,
+    "processingStatus" TEXT NOT NULL DEFAULT 'created',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "MemoryEvent_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MemoryThread" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "firstSeenAt" TIMESTAMP(3) NOT NULL,
+    "lastSeenAt" TIMESTAMP(3) NOT NULL,
+    "notesCount" INTEGER NOT NULL DEFAULT 0,
+    "importanceScore" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "unresolvedCount" INTEGER NOT NULL DEFAULT 0,
+    "emotionalTrend" TEXT,
+    "semanticClusterId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "MemoryThread_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Insight" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "type" "InsightType" NOT NULL,
+    "title" TEXT NOT NULL,
+    "body" TEXT NOT NULL,
+    "relatedThreadId" TEXT,
+    "relatedNoteIds" TEXT[],
+    "importanceScore" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "isRead" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Insight_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -314,6 +360,12 @@ CREATE INDEX "CaptureSession_deviceId_idx" ON "CaptureSession"("deviceId");
 CREATE UNIQUE INDEX "MemoryEvent_recordingId_key" ON "MemoryEvent"("recordingId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "MemoryEvent_transcriptId_key" ON "MemoryEvent"("transcriptId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MemoryEvent_noteId_key" ON "MemoryEvent"("noteId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "MemoryEvent_contextSnapshotId_key" ON "MemoryEvent"("contextSnapshotId");
 
 -- CreateIndex
@@ -323,7 +375,37 @@ CREATE INDEX "MemoryEvent_userId_occurredAt_idx" ON "MemoryEvent"("userId", "occ
 CREATE INDEX "MemoryEvent_userId_type_idx" ON "MemoryEvent"("userId", "type");
 
 -- CreateIndex
+CREATE INDEX "MemoryEvent_memoryThreadId_idx" ON "MemoryEvent"("memoryThreadId");
+
+-- CreateIndex
+CREATE INDEX "MemoryEvent_processingStatus_idx" ON "MemoryEvent"("processingStatus");
+
+-- CreateIndex
+CREATE INDEX "MemoryEvent_transcriptId_idx" ON "MemoryEvent"("transcriptId");
+
+-- CreateIndex
+CREATE INDEX "MemoryEvent_noteId_idx" ON "MemoryEvent"("noteId");
+
+-- CreateIndex
 CREATE INDEX "MemoryEvent_recordingId_idx" ON "MemoryEvent"("recordingId");
+
+-- CreateIndex
+CREATE INDEX "MemoryThread_userId_lastSeenAt_idx" ON "MemoryThread"("userId", "lastSeenAt");
+
+-- CreateIndex
+CREATE INDEX "MemoryThread_userId_importanceScore_idx" ON "MemoryThread"("userId", "importanceScore");
+
+-- CreateIndex
+CREATE INDEX "MemoryThread_semanticClusterId_idx" ON "MemoryThread"("semanticClusterId");
+
+-- CreateIndex
+CREATE INDEX "Insight_userId_isRead_idx" ON "Insight"("userId", "isRead");
+
+-- CreateIndex
+CREATE INDEX "Insight_userId_importanceScore_idx" ON "Insight"("userId", "importanceScore");
+
+-- CreateIndex
+CREATE INDEX "Insight_relatedThreadId_idx" ON "Insight"("relatedThreadId");
 
 -- CreateIndex
 CREATE INDEX "ContextSnapshot_userId_timestamp_idx" ON "ContextSnapshot"("userId", "timestamp");
@@ -431,7 +513,19 @@ ALTER TABLE "MemoryEvent" ADD CONSTRAINT "MemoryEvent_recordingId_fkey" FOREIGN 
 ALTER TABLE "MemoryEvent" ADD CONSTRAINT "MemoryEvent_contextSnapshotId_fkey" FOREIGN KEY ("contextSnapshotId") REFERENCES "ContextSnapshot"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "MemoryEvent" ADD CONSTRAINT "MemoryEvent_memoryThreadId_fkey" FOREIGN KEY ("memoryThreadId") REFERENCES "MemoryThread"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "MemoryEvent" ADD CONSTRAINT "MemoryEvent_deviceId_fkey" FOREIGN KEY ("deviceId") REFERENCES "Device"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MemoryThread" ADD CONSTRAINT "MemoryThread_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Insight" ADD CONSTRAINT "Insight_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Insight" ADD CONSTRAINT "Insight_relatedThreadId_fkey" FOREIGN KEY ("relatedThreadId") REFERENCES "MemoryThread"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ContextSnapshot" ADD CONSTRAINT "ContextSnapshot_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -498,3 +592,4 @@ ALTER TABLE "SyncItem" ADD CONSTRAINT "SyncItem_userId_fkey" FOREIGN KEY ("userI
 
 -- AddForeignKey
 ALTER TABLE "SyncItem" ADD CONSTRAINT "SyncItem_recordingId_fkey" FOREIGN KEY ("recordingId") REFERENCES "Recording"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+

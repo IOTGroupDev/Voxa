@@ -9,6 +9,7 @@ The Prisma draft is in `backend/prisma/schema.prisma`.
 - `CaptureSession`: durable capture lifecycle from mobile/dongle trigger to completed or cancelled recording.
 - `Recording`: private audio file metadata and processing status.
 - `MemoryEvent`: primary domain object combining capture source, context, recording, AI interpretation, and timeline identity.
+- `MemoryThread`: long-term thematic thread for recurring semantic patterns.
 - `ContextSnapshot`: privacy-first context captured at recording time.
 - `Transcript`: speech-to-text result for a recording.
 - `Note`: AI/user-facing memory note attached to a Memory Event.
@@ -17,6 +18,7 @@ The Prisma draft is in `backend/prisma/schema.prisma`.
 - `ActionItem`: extracted or user-managed action.
 - `Reminder`: suggested or user-created reminder.
 - `DailySummary`: generated day-level memory summary.
+- `Insight`: rare contextual resurfacing generated from repeated or important patterns.
 - `AiJob`: durable AI pipeline state.
 - `SyncItem`: future local sync queue/projection state.
 

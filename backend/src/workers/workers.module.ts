@@ -3,6 +3,7 @@ import { QueueModule } from '../queue/queue.module';
 import { ClassificationWorker } from './classification.worker';
 import { CleanupWorker } from './cleanup.worker';
 import { EmbeddingWorker } from './embedding.worker';
+import { InsightWorker } from './insight.worker';
 import { ActionExtractionWorker } from './action-extraction.worker';
 import { ReminderSuggestionWorker } from './reminder-suggestion.worker';
 import { SummaryWorker } from './summary.worker';
@@ -17,6 +18,7 @@ import { RecordingUploadedWorker, TranscriptionWorker } from './transcription.wo
     ClassificationWorker,
     SummaryWorker,
     EmbeddingWorker,
+    InsightWorker,
     ActionExtractionWorker,
     ReminderSuggestionWorker,
     TimelineWorker,

@@ -1,0 +1,150 @@
+import {
+  CompleteCaptureSessionDto,
+  CreateCaptureSessionDto,
+  CreateRecordingDto,
+  CreateReminderDto,
+  PairDeviceDto,
+  UpdateActionItemDto,
+  UpdateInsightDto,
+  UpdateMemoryEventDto,
+  UpdateRecordingStatusDto,
+  UpdateReminderDto,
+} from '@voxa/shared';
+import { apiClient } from './default-client';
+
+export const voxaApi = {
+  getMe() {
+    return apiClient.request('/users/me');
+  },
+
+  pairDevice(dto: PairDeviceDto) {
+    return apiClient.request('/devices/pair', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  listDevices() {
+    return apiClient.request('/devices');
+  },
+
+  createCaptureSession(dto: CreateCaptureSessionDto) {
+    return apiClient.request<{ id: string }>('/capture/session', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  completeCaptureSession(sessionId: string, dto: CompleteCaptureSessionDto) {
+    return apiClient.request(`/capture/session/${sessionId}/complete`, {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  cancelCaptureSession(sessionId: string) {
+    return apiClient.request(`/capture/session/${sessionId}/cancel`, {
+      method: 'PATCH',
+    });
+  },
+
+  createRecording(dto: CreateRecordingDto) {
+    return apiClient.request<{ id: string }>('/recordings', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  createRecordingUploadUrl(recordingId: string) {
+    return apiClient.request<{ bucket: string; path: string; signedUrl: string; token?: string }>(
+      `/recordings/${recordingId}/upload-url`,
+      { method: 'POST' },
+    );
+  },
+
+  updateRecordingStatus(recordingId: string, dto: UpdateRecordingStatusDto) {
+    return apiClient.request(`/recordings/${recordingId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  listRecordings() {
+    return apiClient.request('/recordings');
+  },
+
+  listMemoryEvents() {
+    return apiClient.request('/memory-events');
+  },
+
+  listMemoryThreads() {
+    return apiClient.request('/memory-threads');
+  },
+
+  getMemoryThread(id: string) {
+    return apiClient.request(`/memory-threads/${id}`);
+  },
+
+  updateMemoryEvent(id: string, dto: UpdateMemoryEventDto) {
+    return apiClient.request(`/memory-events/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  listNotes() {
+    return apiClient.request('/notes');
+  },
+
+  listActions() {
+    return apiClient.request('/actions');
+  },
+
+  updateAction(id: string, dto: UpdateActionItemDto) {
+    return apiClient.request(`/actions/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  listReminders() {
+    return apiClient.request('/reminders');
+  },
+
+  listInsights() {
+    return apiClient.request('/insights');
+  },
+
+  updateInsight(id: string, dto: UpdateInsightDto) {
+    return apiClient.request(`/insights/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  createReminder(dto: CreateReminderDto) {
+    return apiClient.request('/reminders', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  updateReminder(id: string, dto: UpdateReminderDto) {
+    return apiClient.request(`/reminders/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  getTimeline() {
+    return apiClient.request('/timeline');
+  },
+
+  getDailySummary(date: string) {
+    return apiClient.request(`/daily-summary/${date}`);
+  },
+
+  search(query: string) {
+    return apiClient.request(`/search?q=${encodeURIComponent(query)}`);
+  },
+};

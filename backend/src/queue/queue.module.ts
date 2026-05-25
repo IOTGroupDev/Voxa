@@ -19,6 +19,7 @@ import { QueueService } from './queue.service';
       { name: QUEUE_NAMES.REMINDER_SUGGESTION },
       { name: QUEUE_NAMES.EMBEDDING },
       { name: QUEUE_NAMES.TIMELINE_UPDATE },
+      { name: QUEUE_NAMES.INSIGHT },
       { name: QUEUE_NAMES.CLEANUP },
     ),
   ],

@@ -22,6 +22,8 @@ export class QueueService {
     private readonly embeddingQueue: Queue,
     @InjectQueue(QUEUE_NAMES.TIMELINE_UPDATE)
     private readonly timelineUpdateQueue: Queue,
+    @InjectQueue(QUEUE_NAMES.INSIGHT)
+    private readonly insightQueue: Queue,
   ) {}
 
   async enqueueRecordingUploaded(input: {
@@ -84,6 +86,10 @@ export class QueueService {
 
   enqueueTimelineUpdate(input: AiPipelineQueueInput & { noteId: string }) {
     return this.enqueue(this.timelineUpdateQueue, QUEUE_NAMES.TIMELINE_UPDATE, 'timeline_update', input);
+  }
+
+  enqueueInsight(input: AiPipelineQueueInput & { noteId: string; memoryThreadId: string }) {
+    return this.enqueue(this.insightQueue, QUEUE_NAMES.INSIGHT, 'insight', input);
   }
 
   private async enqueue<T extends AiPipelineQueueInput>(

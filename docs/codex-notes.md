@@ -11,6 +11,12 @@ This scaffold follows `docs/CODEX_TASK.md` as the source of truth.
 - Backend modules are domain-oriented and intentionally contain TODO placeholders.
 - Recordings, capture sessions, and Memory Events now have Prisma-backed MVP persistence.
 - BullMQ now has a complete mock pipeline from `recording_uploaded` through timeline update.
+- Notes, actions, reminders, timeline, daily summary, and keyword search endpoints now read/write Prisma data with ownership checks.
+- New master task reframes Voxa as a continuity memory system. Avoid chatbot, copilot, dashboard, kanban, and productivity-first UX.
+- MemoryThread and Insight architecture were added to align the domain model with recurring themes and rare resurfacing.
+- Mobile local-first storage now uses an `expo-sqlite` backed draft store plus an offline sync coordinator for retrying queued uploads.
+- NetInfo reconnect handling now triggers pending upload retry from the mobile app root.
+- Local upload queue is now persisted in SQLite, so pending uploads survive app restarts.
 - AI providers are interfaces, not hardcoded vendor calls.
 
 ## Risks And Unknowns

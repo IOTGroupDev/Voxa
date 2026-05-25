@@ -6,9 +6,11 @@ import { AuthModule } from './auth/auth.module';
 import { CaptureModule } from './capture/capture.module';
 import { DevicesModule } from './devices/devices.module';
 import { MemoryEventsModule } from './memory-events/memory-events.module';
+import { MemoryThreadsModule } from './memory-threads/memory-threads.module';
 import { NotesModule } from './notes/notes.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PrivacyModule } from './privacy/privacy.module';
+import { InsightsModule } from './insights/insights.module';
 import { QueueModule } from './queue/queue.module';
 import { RecordingsModule } from './recordings/recordings.module';
 import { RemindersModule } from './reminders/reminders.module';
@@ -28,6 +30,7 @@ import { WorkersModule } from './workers/workers.module';
     CaptureModule,
     RecordingsModule,
     MemoryEventsModule,
+    MemoryThreadsModule,
     TranscriptsModule,
     NotesModule,
     ActionsModule,
@@ -35,6 +38,7 @@ import { WorkersModule } from './workers/workers.module';
     TimelineModule,
     SearchModule,
     AiModule,
+    InsightsModule,
     PrismaModule,
     StorageModule,
     QueueModule,

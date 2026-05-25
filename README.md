@@ -1,8 +1,10 @@
 # Voxa
 
-Voxa is an MVP foundation for an AI memory app paired with a Bluetooth microphone dongle.
+Voxa is an MVP foundation for a continuity memory system paired with a Bluetooth voice dongle.
 
-The product captures voice through the phone or a connected dongle, adds context, uploads audio to a backend, and turns recordings into Memory Events, notes, actions, reminders, timeline entries, and searchable memory.
+The product captures voice through the phone or a connected dongle, adds context, uploads audio to a backend when available, and turns recordings into Memory Events, Memory Threads, rare Insights, timeline entries, and searchable memory.
+
+Voxa is not a chatbot or productivity dashboard. The primary flow is capture, memory, retrieval, and insight.
 
 ## Architecture
 
@@ -31,6 +33,8 @@ No TurboRepo, NX, Kubernetes, microservices, or complex workspace tooling is inc
 Workers are registered inside the NestJS app for the MVP. Running the backend with `npm run start:dev` also starts the queue processors as long as Redis is reachable.
 
 The current AI pipeline is mock-backed end to end. Capture completion creates a transcription `AiJob`, workers produce mock transcript/note/action/reminder/chunk/daily-summary records, and provider integrations remain TODOs.
+
+Mobile local-first scaffolding uses `expo-sqlite` for local memory drafts and the upload queue, NetInfo for reconnect detection, and an upload retry coordinator. Real audio file upload to Supabase signed URLs is still TODO.
 
 ## Environment Variables
 

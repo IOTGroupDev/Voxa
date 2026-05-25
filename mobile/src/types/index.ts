@@ -4,10 +4,11 @@ export type AppRouteName =
   | 'Capture'
   | 'Timeline'
   | 'MemoryEventDetails'
+  | 'MemoryThreads'
   | 'NoteDetails'
+  | 'Insights'
   | 'Actions'
   | 'Reminders'
   | 'Search'
   | 'DeviceManagement'
   | 'Settings';
-

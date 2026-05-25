@@ -46,6 +46,14 @@ export class TranscriptionWorker extends WorkerHost {
       data: { status: 'processing' },
     });
 
+    await this.prisma.memoryEvent.update({
+      where: { id: memoryEventId },
+      data: {
+        transcriptId: transcript.id,
+        processingStatus: 'transcript_created',
+      },
+    });
+
     const completedJob = await this.prisma.aiJob.update({
       where: { id: aiJobId },
       data: {

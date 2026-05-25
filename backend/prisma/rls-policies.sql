@@ -20,8 +20,8 @@ on conflict (id) do nothing;
 
 -- Repeat the policy style for:
 -- "Device", "Recording", "MemoryEvent", "ContextSnapshot", "Transcript",
--- "Note", "NoteChunk", "Tag", "NoteTag", "ActionItem", "Reminder",
--- "DailySummary", "AiJob", and "SyncItem".
+-- "MemoryThread", "Note", "NoteChunk", "Tag", "NoteTag", "ActionItem",
+-- "Reminder", "Insight", "DailySummary", "AiJob", and "SyncItem".
 
 -- Storage path policy style:
 -- The object path should start with the Supabase auth user id:
@@ -42,4 +42,3 @@ on conflict (id) do nothing;
 --     bucket_id = 'audio-private'
 --     and (storage.foldername(name))[1] = auth.uid()::text
 --   );
-

@@ -40,6 +40,16 @@ export enum AiJobStatus {
   CANCELLED = 'cancelled',
 }
 
+export enum InsightType {
+  RECURRING_THEME = 'recurring_theme',
+  UNRESOLVED_QUESTION = 'unresolved_question',
+  SIMILAR_PAST_NOTE = 'similar_past_note',
+  PROJECT_DIRECTION = 'project_direction',
+  EMOTIONAL_PATTERN = 'emotional_pattern',
+  FORGOTTEN_TASK = 'forgotten_task',
+  DECISION_NEEDED = 'decision_needed',
+}
+
 export enum DongleConnectionState {
   DISCONNECTED = 'disconnected',
   CONNECTING = 'connecting',
@@ -57,6 +67,6 @@ export enum AiJobType {
   REMINDER_SUGGESTION = 'reminder_suggestion',
   EMBEDDING = 'embedding',
   TIMELINE_UPDATE = 'timeline_update',
+  INSIGHT = 'insight',
   CLEANUP = 'cleanup',
 }
-

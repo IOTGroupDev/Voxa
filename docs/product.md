@@ -1,13 +1,15 @@
 # Product
 
-Voxa is an external memory system built around fast voice capture, context, AI interpretation, actions, reminders, timeline, and search.
+Voxa is a continuity memory system built around fast voice capture, context, meaning, long-term memory, resurfacing, and insight.
 
 The MVP supports two capture sources:
 
 - mobile app manual recording;
 - Bluetooth dongle trigger with mocked control events.
 
-The core product object is `MemoryEvent`, not `Recording`. A recording is the audio artifact. A Memory Event combines audio, button gesture, timestamp, context, inferred intent, transcript, note, actions, reminders, and timeline placement.
+The core product object is `MemoryEvent`, not `Recording`. A recording is the audio artifact. A Memory Event combines audio, button gesture, timestamp, context, inferred intent, transcript, note, semantic meaning, thread membership, and timeline placement.
+
+Voxa is not a chatbot, copilot, dashboard, productivity tracker, or generic notes app. The primary UX is capture, memory, retrieval, and insight.
 
 ## Dongle Role
 
@@ -28,4 +30,3 @@ The mobile app receives audio, manages recording sessions, listens for BLE butto
 ## Backend Role
 
 The backend validates Supabase Auth JWTs, orchestrates Supabase Storage, persists the domain model, runs BullMQ jobs, invokes AI providers, updates timeline/search projections, and enforces privacy behavior.
-

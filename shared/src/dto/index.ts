@@ -42,6 +42,8 @@ export interface UpdateMemoryEventDto {
   type?: MemoryEventType;
   title?: string;
   summary?: string;
+  importanceScore?: number;
+  emotionalScore?: number;
 }
 
 export interface PairDeviceDto {
@@ -68,3 +70,6 @@ export interface UpdateReminderDto {
   dismissedAt?: string | null;
 }
 
+export interface UpdateInsightDto {
+  isRead?: boolean;
+}

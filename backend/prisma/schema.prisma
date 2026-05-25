@@ -57,7 +57,18 @@ enum AiJobType {
   reminder_suggestion
   embedding
   timeline_update
+  insight
   cleanup
+}
+
+enum InsightType {
+  recurring_theme
+  unresolved_question
+  similar_past_note
+  project_direction
+  emotional_pattern
+  forgotten_task
+  decision_needed
 }
 
 enum CaptureSessionStatus {
@@ -83,6 +94,8 @@ model User {
   recordings     Recording[]
   captureSessions CaptureSession[]
   memoryEvents   MemoryEvent[]
+  memoryThreads  MemoryThread[]
+  insights       Insight[]
   contextSnapshots ContextSnapshot[]
   transcripts    Transcript[]
   notes          Note[]
@@ -175,8 +188,12 @@ model MemoryEvent {
   user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   recordingId       String?           @unique
   recording         Recording?        @relation(fields: [recordingId], references: [id], onDelete: SetNull)
+  transcriptId      String?           @unique
+  noteId            String?           @unique
   contextSnapshotId String?           @unique
   contextSnapshot   ContextSnapshot?  @relation(fields: [contextSnapshotId], references: [id], onDelete: SetNull)
+  memoryThreadId    String?
+  memoryThread      MemoryThread?     @relation(fields: [memoryThreadId], references: [id], onDelete: SetNull)
   note              Note?
   deviceId          String?
   device            Device?           @relation(fields: [deviceId], references: [id], onDelete: SetNull)
@@ -187,13 +204,64 @@ model MemoryEvent {
   title             String?
   summary           String?
   confidence        Float?
+  importanceScore   Float             @default(0)
+  emotionalScore    Float?
+  semanticHash      String?
+  processingStatus  String            @default("created")
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
   aiJobs            AiJob[]
 
   @@index([userId, occurredAt])
   @@index([userId, type])
+  @@index([memoryThreadId])
+  @@index([processingStatus])
+  @@index([transcriptId])
+  @@index([noteId])
   @@index([recordingId])
+}
+
+model MemoryThread {
+  id                String        @id @default(uuid())
+  userId            String
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title             String
+  description       String?
+  firstSeenAt       DateTime
+  lastSeenAt        DateTime
+  notesCount        Int           @default(0)
+  importanceScore   Float         @default(0)
+  unresolvedCount   Int           @default(0)
+  emotionalTrend    String?
+  semanticClusterId String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  memoryEvents      MemoryEvent[]
+  insights          Insight[]
+
+  @@index([userId, lastSeenAt])
+  @@index([userId, importanceScore])
+  @@index([semanticClusterId])
+}
+
+model Insight {
+  id              String        @id @default(uuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type            InsightType
+  title           String
+  body            String
+  relatedThreadId String?
+  relatedThread   MemoryThread? @relation(fields: [relatedThreadId], references: [id], onDelete: SetNull)
+  relatedNoteIds  String[]
+  importanceScore Float         @default(0)
+  isRead          Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([userId, isRead])
+  @@index([userId, importanceScore])
+  @@index([relatedThreadId])
 }
 
 model ContextSnapshot {

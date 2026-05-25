@@ -150,6 +150,18 @@ Response body: Memory Event data or deletion confirmation.
 
 Errors: `404` not found.
 
+## Memory Threads
+
+### `GET /memory-threads`, `GET /memory-threads/:id`
+
+Purpose: browse recurring semantic themes and inspect related memories.
+
+Request body: none.
+
+Response body: Memory Thread data with recent Memory Events and related Insights.
+
+Errors: `404` not found.
+
 ## Notes
 
 ### `GET /notes`, `GET /notes/:id`, `PATCH /notes/:id`, `DELETE /notes/:id`
@@ -158,7 +170,7 @@ Purpose: browse, read, edit, or delete generated notes.
 
 Request body: editable note fields for `PATCH`, none otherwise.
 
-Response body: note data or deletion confirmation.
+Response body: note data with related Memory Event, tags, action items, and reminders, or deletion confirmation.
 
 Errors: `404` not found.
 
@@ -170,7 +182,7 @@ Purpose: manage extracted action items.
 
 Request body: `UpdateActionItemDto` for `PATCH`, none otherwise.
 
-Response body: action item data.
+Response body: action item data, including related note on list responses.
 
 Errors: `404` not found.
 
@@ -182,9 +194,21 @@ Purpose: list, create, update, or delete reminders.
 
 Request body: `CreateReminderDto` or `UpdateReminderDto`.
 
-Response body: reminder data.
+Response body: reminder data, including related note on list responses.
 
 Errors: `400` invalid reminder time, `404` not found.
+
+## Insights
+
+### `GET /insights`, `GET /insights/:id`, `PATCH /insights/:id`
+
+Purpose: list rare contextual insights, inspect one insight, and mark read/unread.
+
+Request body: `UpdateInsightDto` for `PATCH`, none otherwise.
+
+Response body: insight data with related Memory Thread.
+
+Errors: `404` not found.
 
 ## Timeline
 
@@ -194,7 +218,7 @@ Purpose: return user timeline built from Memory Events.
 
 Request body: none.
 
-Response body: timeline entries.
+Response body: Memory Events with recording, context snapshot, note, action items, reminders, and tags.
 
 Errors: `401` invalid token.
 
@@ -216,7 +240,7 @@ Purpose: semantic and keyword search across user memory.
 
 Request body: none.
 
-Response body: search results.
+Response body: keyword search results across notes and Memory Event titles/summaries. Semantic search is still a TODO after embedding provider integration.
 
 Errors: `400` empty query if query is required by implementation.
 
@@ -241,4 +265,3 @@ Request body: none.
 Response body: queued job state.
 
 Errors: `404` event not found.
-

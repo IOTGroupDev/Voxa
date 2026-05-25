@@ -12,6 +12,8 @@
 
 - Implement mobile manual recording.
 - Implement mock dongle events in app flows.
+- Persist unsynced local captures with SQLite.
+- Retry queued uploads when backend access returns.
 - Create capture sessions.
 - Generate signed upload URLs.
 - Upload audio to `audio-private`.
@@ -31,6 +33,8 @@
 ## Phase 5: Product Surfaces
 
 - Build timeline.
+- Build Memory Threads.
+- Build low-frequency Insights.
 - Build actions inbox.
 - Build reminder suggestions.
 - Build semantic search.
@@ -50,4 +54,3 @@
 - subscriptions;
 - hardware OTA implementation;
 - polished final UI.
-
