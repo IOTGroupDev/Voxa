@@ -6,10 +6,14 @@ import {
 } from '@voxa/shared';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { QueueService } from '../queue/queue.service';
 
 @Injectable()
 export class CaptureService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly queueService: QueueService,
+  ) {}
 
   async createSession(supabaseUserId: string, email: string | undefined, dto: CreateCaptureSessionDto) {
     const user = await this.upsertUser(supabaseUserId, email);
@@ -90,8 +94,28 @@ export class CaptureService {
       },
     });
 
-    // TODO: Enqueue recording_uploaded with BullMQ once QueueService is fully wired.
-    return { captureSession: updatedSession, memoryEvent };
+    const aiJob = await this.prisma.aiJob.create({
+      data: {
+        userId: captureSession.userId,
+        recordingId: recording.id,
+        memoryEventId: memoryEvent.id,
+        type: 'transcription',
+        status: 'pending',
+        payload: this.toJson({
+          source: 'capture_session_completed',
+          captureSessionId: captureSession.id,
+        }),
+      },
+    });
+
+    const queuedJob = await this.queueService.enqueueRecordingUploaded({
+      aiJobId: aiJob.id,
+      recordingId: recording.id,
+      memoryEventId: memoryEvent.id,
+      userId: captureSession.userId,
+    });
+
+    return { captureSession: updatedSession, memoryEvent, aiJob, queuedJob };
   }
 
   async cancelSession(supabaseUserId: string, id: string) {

@@ -10,6 +10,7 @@ This scaffold follows `docs/CODEX_TASK.md` as the source of truth.
 - Shared code is limited to TypeScript contracts.
 - Backend modules are domain-oriented and intentionally contain TODO placeholders.
 - Recordings, capture sessions, and Memory Events now have Prisma-backed MVP persistence.
+- BullMQ now has a complete mock pipeline from `recording_uploaded` through timeline update.
 - AI providers are interfaces, not hardcoded vendor calls.
 
 ## Risks And Unknowns

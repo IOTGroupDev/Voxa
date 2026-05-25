@@ -36,6 +36,8 @@ Backend is NestJS with Prisma, Supabase Auth JWT verification, Supabase Postgres
 
 The first implemented backend flow persists users by Supabase JWT subject, creates recordings, creates capture sessions with context snapshots, completes captures into Memory Events, and enforces ownership on reads/updates.
 
+Capture completion also creates an `AiJob` and enqueues the first BullMQ step. The current worker path uses a mock transcript and is ready to be replaced by a real speech-to-text provider.
+
 ## Shared
 
 `shared` contains only TypeScript types, DTOs, enums, constants, and API contracts. It should not contain app logic or platform-specific code.

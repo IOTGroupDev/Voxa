@@ -42,3 +42,23 @@ Worker skeletons live in `backend/src/workers`:
 
 Workers should persist `AiJob` state transitions and retry metadata before integrating external providers.
 
+## Current MVP Wiring
+
+`PATCH /capture/session/:id/complete` creates an `AiJob` with type `transcription` and enqueues `recording_uploaded`.
+
+The `RecordingUploadedWorker` forwards that payload into `transcription_queue`.
+
+The current mock worker chain is:
+
+```txt
+RecordingUploadedWorker
+-> TranscriptionWorker
+-> ClassificationWorker
+-> SummaryWorker
+-> ActionExtractionWorker
+-> ReminderSuggestionWorker
+-> EmbeddingWorker
+-> TimelineWorker
+```
+
+Each worker updates its `AiJob`, creates the next `AiJob`, and enqueues the next queue. Provider calls are still mocked and should be replaced behind the provider interfaces.

@@ -28,6 +28,10 @@ No TurboRepo, NX, Kubernetes, microservices, or complex workspace tooling is inc
 4. Start Redis for BullMQ workers.
 5. Start the backend API and Expo mobile app.
 
+Workers are registered inside the NestJS app for the MVP. Running the backend with `npm run start:dev` also starts the queue processors as long as Redis is reachable.
+
+The current AI pipeline is mock-backed end to end. Capture completion creates a transcription `AiJob`, workers produce mock transcript/note/action/reminder/chunk/daily-summary records, and provider integrations remain TODOs.
+
 ## Environment Variables
 
 Backend:
