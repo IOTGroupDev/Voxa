@@ -4,6 +4,7 @@ export interface LocalMemoryEventDraft {
   title?: string;
   summary?: string;
   localRecordingUri?: string;
+  capturePayload?: string;
   syncedAt?: string;
 }
 
@@ -29,4 +30,3 @@ export class LocalMemoryCache {
     );
   }
 }
-

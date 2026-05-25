@@ -26,7 +26,7 @@ Errors: `401` missing/invalid token.
 
 ### `POST /devices/pair`
 
-Purpose: pair a Bluetooth dongle with the authenticated user.
+Purpose: pair a Bluetooth dongle with the authenticated user. The current MVP supports mock dongle pairing and stores the device in Postgres.
 
 Request body: `PairDeviceDto`.
 

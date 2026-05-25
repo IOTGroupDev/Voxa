@@ -29,12 +29,12 @@ export async function runMockCapture(input: RunMockCaptureInput) {
     },
   };
 
-  const captureSession = await voxaApi.createCaptureSession(captureSessionDto);
   const recordingSession = await audioRecorder.start();
   await sqliteMemoryStore.saveDraft({
     id: recordingSession.id,
     createdAt: recordingSession.startedAt,
     title: 'Unsynced memory capture',
+    capturePayload: JSON.stringify(captureSessionDto),
   });
   const completedRecordingSession = await audioRecorder.stop(recordingSession.id);
   await sqliteMemoryStore.saveDraft({
@@ -42,6 +42,7 @@ export async function runMockCapture(input: RunMockCaptureInput) {
     createdAt: completedRecordingSession.startedAt,
     title: 'Memory capture',
     localRecordingUri: completedRecordingSession.localUri,
+    capturePayload: JSON.stringify(captureSessionDto),
   });
   if (completedRecordingSession.localUri) {
     await localUploadQueue.enqueue({
@@ -50,29 +51,38 @@ export async function runMockCapture(input: RunMockCaptureInput) {
       localUri: completedRecordingSession.localUri,
     });
   }
-  const recording = await voxaApi.createRecording({
-    source: input.source,
-    deviceId: input.deviceId,
-    mimeType: 'audio/mp4',
-    durationMs: completedRecordingSession.durationMs,
-  });
-  const upload = await voxaApi.createRecordingUploadUrl(recording.id);
+  try {
+    const captureSession = await voxaApi.createCaptureSession(captureSessionDto);
+    const recording = await voxaApi.createRecording({
+      source: input.source,
+      deviceId: input.deviceId,
+      mimeType: 'audio/mp4',
+      durationMs: completedRecordingSession.durationMs,
+    });
+    const upload = await voxaApi.createRecordingUploadUrl(recording.id);
 
-  // TODO: Upload completedRecordingSession.localUri to upload.signedUrl when real audio is wired.
-  await voxaApi.updateRecordingStatus(recording.id, { status: RecordingStatus.UPLOADED });
+    // TODO: Upload completedRecordingSession.localUri to upload.signedUrl when real audio is wired.
+    await voxaApi.updateRecordingStatus(recording.id, { status: RecordingStatus.UPLOADED });
 
-  const completedCapture = await voxaApi.completeCaptureSession(captureSession.id, {
-    recordingId: recording.id,
-    durationMs: completedRecordingSession.durationMs,
-  });
-  await sqliteMemoryStore.markSynced(recordingSession.id);
-  await localUploadQueue.remove(`upload-${completedRecordingSession.id}`);
+    const completedCapture = await voxaApi.completeCaptureSession(captureSession.id, {
+      recordingId: recording.id,
+      durationMs: completedRecordingSession.durationMs,
+    });
+    await sqliteMemoryStore.markSynced(recordingSession.id);
+    await localUploadQueue.remove(`upload-${completedRecordingSession.id}`);
 
-  return {
-    captureSession,
-    recordingSession: completedRecordingSession,
-    recording,
-    upload,
-    completedCapture,
-  };
+    return {
+      synced: true,
+      captureSession,
+      recordingSession: completedRecordingSession,
+      recording,
+      upload,
+      completedCapture,
+    };
+  } catch {
+    return {
+      synced: false,
+      recordingSession: completedRecordingSession,
+    };
+  }
 }

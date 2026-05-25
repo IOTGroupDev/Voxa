@@ -13,6 +13,7 @@ type DraftRow = {
   title: string | null;
   summary: string | null;
   local_recording_uri: string | null;
+  capture_payload: string | null;
   synced_at: string | null;
 };
 
@@ -23,19 +24,21 @@ export class ExpoSQLiteMemoryStore implements SQLiteMemoryStore {
     const db = await this.getDb();
     await db.runAsync(
       `insert into local_memory_event_drafts
-        (id, created_at, title, summary, local_recording_uri, synced_at)
-       values (?, ?, ?, ?, ?, ?)
+        (id, created_at, title, summary, local_recording_uri, capture_payload, synced_at)
+       values (?, ?, ?, ?, ?, ?, ?)
        on conflict(id) do update set
         created_at = excluded.created_at,
         title = excluded.title,
         summary = excluded.summary,
         local_recording_uri = excluded.local_recording_uri,
+        capture_payload = excluded.capture_payload,
         synced_at = excluded.synced_at`,
       draft.id,
       draft.createdAt,
       draft.title ?? null,
       draft.summary ?? null,
       draft.localRecordingUri ?? null,
+      draft.capturePayload ?? null,
       draft.syncedAt ?? null,
     );
   }
@@ -43,7 +46,7 @@ export class ExpoSQLiteMemoryStore implements SQLiteMemoryStore {
   async listDrafts(): Promise<LocalMemoryEventDraft[]> {
     const db = await this.getDb();
     const rows = await db.getAllAsync<DraftRow>(
-      `select id, created_at, title, summary, local_recording_uri, synced_at
+      `select id, created_at, title, summary, local_recording_uri, capture_payload, synced_at
        from local_memory_event_drafts
        order by created_at desc`,
     );
@@ -54,6 +57,7 @@ export class ExpoSQLiteMemoryStore implements SQLiteMemoryStore {
       title: row.title ?? undefined,
       summary: row.summary ?? undefined,
       localRecordingUri: row.local_recording_uri ?? undefined,
+      capturePayload: row.capture_payload ?? undefined,
       syncedAt: row.synced_at ?? undefined,
     }));
   }
@@ -84,6 +88,7 @@ export class ExpoSQLiteMemoryStore implements SQLiteMemoryStore {
         title text,
         summary text,
         local_recording_uri text,
+        capture_payload text,
         synced_at text
       );
 

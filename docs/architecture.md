@@ -42,6 +42,10 @@ The current functional API surface exposes generated artifacts through notes, ac
 
 The updated master task adds hybrid local-first expectations. Mobile owns capture resilience through local cache, SQLite-backed upload queue, temporary memory state, `expo-sqlite` storage, and network reconnect retry via NetInfo. Backend remains the enrichment layer for transcription, semantic memory, Memory Threads, Insights, and long-term search.
 
+Mock capture now writes local drafts and upload queue entries before any backend call. If backend sync fails, capture still completes locally and retry can run later.
+
+Device pairing is Prisma-backed on the backend. Mobile uses a singleton `MockDongleService`; mock button events trigger the same local-first capture flow as manual capture.
+
 ## Shared
 
 `shared` contains only TypeScript types, DTOs, enums, constants, and API contracts. It should not contain app logic or platform-specific code.

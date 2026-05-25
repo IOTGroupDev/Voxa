@@ -17,6 +17,8 @@ This scaffold follows `docs/CODEX_TASK.md` as the source of truth.
 - Mobile local-first storage now uses an `expo-sqlite` backed draft store plus an offline sync coordinator for retrying queued uploads.
 - NetInfo reconnect handling now triggers pending upload retry from the mobile app root.
 - Local upload queue is now persisted in SQLite, so pending uploads survive app restarts.
+- Mock capture is split into local-first capture plus best-effort backend sync. Production BLE/audio and real file upload remain intentionally out of scope.
+- Backend devices are now Prisma-backed, and mobile mock dongle events are wired into capture flow.
 - AI providers are interfaces, not hardcoded vendor calls.
 
 ## Risks And Unknowns

@@ -1,5 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { PairDeviceDto } from '@voxa/shared';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { AuthenticatedUser } from '../auth/auth.service';
 import { DevicesService } from './devices.service';
 
 @Controller('devices')
@@ -7,28 +9,31 @@ export class DevicesController {
   constructor(private readonly devicesService: DevicesService) {}
 
   @Post('pair')
-  pair(@Body() dto: PairDeviceDto) {
-    return this.devicesService.pair(dto);
+  pair(@CurrentUser() user: AuthenticatedUser, @Body() dto: PairDeviceDto) {
+    return this.devicesService.pair(user.supabaseUserId, user.email, dto);
   }
 
   @Get()
-  list() {
-    return this.devicesService.list();
+  list(@CurrentUser() user: AuthenticatedUser) {
+    return this.devicesService.list(user.supabaseUserId);
   }
 
   @Get(':id')
-  get(@Param('id') id: string) {
-    return this.devicesService.get(id);
+  get(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.devicesService.get(user.supabaseUserId, id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: Partial<PairDeviceDto>) {
-    return this.devicesService.update(id, dto);
+  update(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: Partial<PairDeviceDto>,
+  ) {
+    return this.devicesService.update(user.supabaseUserId, id, dto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.devicesService.remove(id);
+  remove(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.devicesService.remove(user.supabaseUserId, id);
   }
 }
-

@@ -36,6 +36,10 @@ The current AI pipeline is mock-backed end to end. Capture completion creates a 
 
 Mobile local-first scaffolding uses `expo-sqlite` for local memory drafts and the upload queue, NetInfo for reconnect detection, and an upload retry coordinator. Real audio file upload to Supabase signed URLs is still TODO.
 
+Hardware and audio remain mocked. A mock capture records locally first and only then attempts backend sync; failed sync leaves a pending SQLite upload item for retry.
+
+Mock dongle pairing is wired end to end: the mobile mock dongle can pair through the backend device API, and mock button events trigger local-first capture.
+
 ## Environment Variables
 
 Backend:

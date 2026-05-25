@@ -1,4 +1,4 @@
-import { CaptureSource } from '@voxa/shared';
+import { CaptureSource, CreateCaptureSessionDto, RecordingStatus } from '@voxa/shared';
 import { voxaApi } from '../api/voxa-api';
 import { SQLiteMemoryStore } from './sqlite-memory-store';
 import { UploadQueue } from './upload-queue';
@@ -24,12 +24,27 @@ export class OfflineSyncCoordinator {
       await this.uploadQueue.markAttempt(item.id);
 
       try {
+        const drafts = await this.memoryStore.listDrafts();
+        const matchingDraft = drafts.find((draft) => draft.id === item.recordingSessionId);
+        const capturePayload = matchingDraft?.capturePayload
+          ? (JSON.parse(matchingDraft.capturePayload) as CreateCaptureSessionDto)
+          : null;
+        const captureSession = capturePayload
+          ? await voxaApi.createCaptureSession(capturePayload)
+          : null;
         const recording = await voxaApi.createRecording({
-          source: CaptureSource.MOBILE_APP,
+          source: capturePayload?.source ?? CaptureSource.MOBILE_APP,
+          deviceId: capturePayload?.deviceId,
           mimeType: 'audio/mp4',
         });
         await voxaApi.createRecordingUploadUrl(recording.id);
         // TODO: Upload item.localUri to Supabase signed URL when real audio files are wired.
+        await voxaApi.updateRecordingStatus(recording.id, { status: RecordingStatus.UPLOADED });
+        if (captureSession) {
+          await voxaApi.completeCaptureSession(captureSession.id, {
+            recordingId: recording.id,
+          });
+        }
         await this.memoryStore.markSynced(item.recordingSessionId);
         await this.uploadQueue.remove(item.id);
         completed += 1;
