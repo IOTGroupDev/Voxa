@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.expo/
+.turbo/
+.nx/
+
+.env
+.env.*
+!.env.example
+
+.npm-cache/
+.tmp/
+
+*.log
+*.tsbuildinfo
+

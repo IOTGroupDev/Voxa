@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "Voxa",
+    "slug": "voxa",
+    "scheme": "voxa",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "platforms": ["ios", "android"]
+  }
+}
+

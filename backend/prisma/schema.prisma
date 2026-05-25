@@ -1,0 +1,394 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MemoryEventType {
+  quick_note
+  task
+  idea
+  important
+  reflection
+  meeting
+  manual
+}
+
+enum CaptureSource {
+  dongle
+  mobile_app
+}
+
+enum ButtonGesture {
+  single_press
+  double_press
+  long_press
+  press_and_hold
+}
+
+enum RecordingStatus {
+  created
+  recording
+  uploading
+  uploaded
+  processing
+  completed
+  failed
+  deleted
+}
+
+enum AiJobStatus {
+  pending
+  processing
+  completed
+  failed
+  retrying
+  cancelled
+}
+
+enum AiJobType {
+  transcription
+  classification
+  summary
+  action_extraction
+  reminder_suggestion
+  embedding
+  timeline_update
+  cleanup
+}
+
+enum CaptureSessionStatus {
+  active
+  completed
+  cancelled
+}
+
+enum DeviceStatus {
+  active
+  inactive
+  lost
+  revoked
+}
+
+model User {
+  id             String            @id @default(uuid())
+  supabaseUserId String            @unique
+  email          String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  devices        Device[]
+  recordings     Recording[]
+  captureSessions CaptureSession[]
+  memoryEvents   MemoryEvent[]
+  contextSnapshots ContextSnapshot[]
+  transcripts    Transcript[]
+  notes          Note[]
+  noteChunks     NoteChunk[]
+  tags           Tag[]
+  noteTags       NoteTag[]
+  actionItems    ActionItem[]
+  reminders      Reminder[]
+  dailySummaries DailySummary[]
+  aiJobs         AiJob[]
+  syncItems      SyncItem[]
+
+  @@index([supabaseUserId])
+}
+
+model Device {
+  id              String       @id @default(uuid())
+  userId          String
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hardwareId      String
+  displayName     String?
+  firmwareVersion String?
+  status          DeviceStatus @default(active)
+  pairedAt        DateTime     @default(now())
+  lastSeenAt      DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  recordings      Recording[]
+  captureSessions CaptureSession[]
+  memoryEvents    MemoryEvent[]
+  contextSnapshots ContextSnapshot[]
+
+  @@unique([userId, hardwareId])
+  @@index([userId])
+}
+
+model Recording {
+  id            String          @id @default(uuid())
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId      String?
+  device        Device?         @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  status        RecordingStatus @default(created)
+  captureSource CaptureSource
+  storageBucket String
+  storagePath   String
+  mimeType      String?
+  durationMs    Int?
+  sizeBytes     Int?
+  uploadedAt    DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  memoryEvent   MemoryEvent?
+  transcript    Transcript?
+  captureSession CaptureSession?
+  aiJobs        AiJob[]
+  syncItems     SyncItem[]
+
+  @@index([userId, status])
+  @@index([deviceId])
+  @@index([createdAt])
+}
+
+model CaptureSession {
+  id                String               @id @default(uuid())
+  userId            String
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId          String?
+  device            Device?              @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  recordingId       String?              @unique
+  recording         Recording?           @relation(fields: [recordingId], references: [id], onDelete: SetNull)
+  contextSnapshotId String?              @unique
+  contextSnapshot   ContextSnapshot?     @relation(fields: [contextSnapshotId], references: [id], onDelete: SetNull)
+  source            CaptureSource
+  buttonGesture     ButtonGesture?
+  status            CaptureSessionStatus @default(active)
+  startedAt         DateTime             @default(now())
+  completedAt       DateTime?
+  cancelledAt       DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@index([userId, status])
+  @@index([deviceId])
+}
+
+model MemoryEvent {
+  id                String            @id @default(uuid())
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recordingId       String?           @unique
+  recording         Recording?        @relation(fields: [recordingId], references: [id], onDelete: SetNull)
+  contextSnapshotId String?           @unique
+  contextSnapshot   ContextSnapshot?  @relation(fields: [contextSnapshotId], references: [id], onDelete: SetNull)
+  note              Note?
+  deviceId          String?
+  device            Device?           @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  type              MemoryEventType   @default(quick_note)
+  captureSource     CaptureSource
+  buttonGesture     ButtonGesture?
+  occurredAt        DateTime
+  title             String?
+  summary           String?
+  confidence        Float?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  aiJobs            AiJob[]
+
+  @@index([userId, occurredAt])
+  @@index([userId, type])
+  @@index([recordingId])
+}
+
+model ContextSnapshot {
+  id                  String         @id @default(uuid())
+  userId              String
+  user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  timestamp           DateTime
+  timezone            String
+  location            Json?
+  calendarContext     Json?
+  deviceState         Json?
+  appState            Json?
+  captureSource       CaptureSource
+  buttonGesture       ButtonGesture?
+  nearbyDeviceId      String?
+  nearbyDevice        Device?        @relation(fields: [nearbyDeviceId], references: [id], onDelete: SetNull)
+  userSelectedProject String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  memoryEvent         MemoryEvent?
+  captureSession      CaptureSession?
+
+  @@index([userId, timestamp])
+  @@index([nearbyDeviceId])
+}
+
+model Transcript {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recordingId String    @unique
+  recording   Recording @relation(fields: [recordingId], references: [id], onDelete: Cascade)
+  language    String?
+  text        String
+  segments    Json?
+  provider    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model Note {
+  id            String       @id @default(uuid())
+  userId        String
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  memoryEventId String       @unique
+  memoryEvent   MemoryEvent  @relation(fields: [memoryEventId], references: [id], onDelete: Cascade)
+  title         String?
+  summary       String?
+  body          String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  chunks        NoteChunk[]
+  noteTags      NoteTag[]
+  actionItems   ActionItem[]
+  reminders     Reminder[]
+
+  @@index([userId, createdAt])
+}
+
+model NoteChunk {
+  id        String                @id @default(uuid())
+  userId    String
+  user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  noteId    String
+  note      Note                  @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  content   String
+  ordinal   Int
+  embedding Unsupported("vector")?
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  @@index([userId])
+  @@index([noteId, ordinal])
+}
+
+model Tag {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  noteTags  NoteTag[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model NoteTag {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  noteId    String
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([noteId, tagId])
+  @@index([userId])
+  @@index([tagId])
+}
+
+model ActionItem {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  noteId      String
+  note        Note      @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  dueAt       DateTime?
+  completedAt DateTime?
+  source      String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId, completedAt])
+  @@index([noteId])
+}
+
+model Reminder {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  noteId      String?
+  note        Note?     @relation(fields: [noteId], references: [id], onDelete: SetNull)
+  title       String
+  remindAt    DateTime
+  dismissedAt DateTime?
+  source      String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId, remindAt])
+  @@index([noteId])
+}
+
+model DailySummary {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime
+  summary   String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId])
+}
+
+model AiJob {
+  id            String       @id @default(uuid())
+  userId        String
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          AiJobType
+  status        AiJobStatus  @default(pending)
+  recordingId   String?
+  recording     Recording?   @relation(fields: [recordingId], references: [id], onDelete: SetNull)
+  memoryEventId String?
+  memoryEvent   MemoryEvent? @relation(fields: [memoryEventId], references: [id], onDelete: SetNull)
+  attempts      Int          @default(0)
+  lastError     String?
+  payload       Json?
+  scheduledAt   DateTime?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([userId, status])
+  @@index([type, status])
+  @@index([recordingId])
+  @@index([memoryEventId])
+}
+
+model SyncItem {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recordingId String?
+  recording   Recording? @relation(fields: [recordingId], references: [id], onDelete: SetNull)
+  entityType  String
+  entityId    String
+  operation   String
+  status      String
+  payload     Json?
+  syncedAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId, status])
+  @@index([entityType, entityId])
+}

@@ -1,0 +1,25 @@
+{
+  "name": "voxa-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "App.tsx",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.44.0",
+    "@tanstack/react-query": "^5.40.0",
+    "expo": "~56.0.4",
+    "react": "19.2.3",
+    "react-native": "0.85.3",
+    "zustand": "^4.5.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "typescript": "^5.4.0"
+  }
+}
