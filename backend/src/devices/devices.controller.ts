@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
-import { PairDeviceDto } from '@voxa/shared';
+import { PairDeviceDto, UpdateDeviceStatusDto } from '@voxa/shared';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/auth.service';
 import { DevicesService } from './devices.service';
@@ -30,6 +30,15 @@ export class DevicesController {
     @Body() dto: Partial<PairDeviceDto>,
   ) {
     return this.devicesService.update(user.supabaseUserId, id, dto);
+  }
+
+  @Patch(':id/status')
+  updateStatus(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateDeviceStatusDto,
+  ) {
+    return this.devicesService.updateStatus(user.supabaseUserId, id, dto);
   }
 
   @Delete(':id')

@@ -54,11 +54,39 @@ Response body: device or deletion confirmation.
 
 Errors: `404` not found.
 
+### `PATCH /devices/:id/status`
+
+Purpose: mark a device active, inactive, lost, or revoked.
+
+Request body: `UpdateDeviceStatusDto`.
+
+Response body: updated device.
+
+Errors: `400` invalid status, `404` not found.
+
+### Dongle storage sync architecture
+
+Autonomous dongle storage runtime is not part of MVP v1, but the API includes architecture-level metadata/status endpoints for future hardware v2. Runtime audio chunk upload and BLE file synchronization are still not implemented.
+
+The full future flow should support:
+
+- list device manifest;
+- register offline recording metadata;
+- upload verified chunks or a reassembled local file;
+- mark recording transferred to phone;
+- mark recording uploaded to backend;
+- mark recording safe to delete from dongle;
+- resume or fail interrupted sync.
+
+All future endpoints must be idempotent by `deviceId + localRecordingId`.
+
+Lost or revoked devices must not be accepted for offline recording metadata/status sync.
+
 ## Capture
 
 ### `POST /capture/session`
 
-Purpose: start a capture session from mobile app or dongle.
+Purpose: start a capture session from phone button, AirPods/Siri Shortcut, or dongle.
 
 Request body: `CreateCaptureSessionDto` with source, optional button gesture/device, and `ContextSnapshot`.
 
@@ -127,6 +155,36 @@ Request body: none.
 Response body: recording data or deletion confirmation.
 
 Errors: `404` not found.
+
+### `POST /recordings/dongle/metadata`
+
+Purpose: register metadata for a recording captured autonomously on a paired dongle. This is future hardware v2 architecture support; it does not transfer audio chunks.
+
+Request body: `RegisterDongleRecordingMetadataDto`.
+
+Response body: idempotent `Recording` row keyed by device and local recording id.
+
+Errors: `400` invalid metadata, `404` paired device not found.
+
+### `PATCH /recordings/dongle/status`
+
+Purpose: update backend sync state for a device-origin recording.
+
+Request body: `UpdateDongleRecordingSyncStatusDto`.
+
+Response body: updated `Recording`.
+
+Errors: `400` invalid sync status payload, `404` recording or paired device not found.
+
+### `GET /recordings/dongle/:deviceId`
+
+Purpose: list backend-known offline recordings for a paired dongle hardware id.
+
+Request body: none.
+
+Response body: recording array.
+
+Errors: `404` paired device not found.
 
 ## Memory Events
 
@@ -218,7 +276,17 @@ Purpose: return user timeline built from Memory Events.
 
 Request body: none.
 
-Response body: Memory Events with recording, context snapshot, note, action items, reminders, and tags.
+Response body: Memory Events with recording, recording transcript, context snapshot, note, action items, reminders, tags, and memory thread.
+
+Mobile uses these fields to show capture pipeline details:
+
+- `recording.status`
+- `recording.dongleSyncStatus`
+- `recording.transcript.text`
+- `processingStatus`
+- `note.summary`
+- `note.actionItems`
+- `memoryThread.title`
 
 Errors: `401` invalid token.
 
@@ -252,9 +320,9 @@ Purpose: rerun AI pipeline from a recording.
 
 Request body: none.
 
-Response body: queued job state.
+Response body: created `AiJob` and BullMQ queued job metadata.
 
-Errors: `404` recording not found.
+Errors: `400` recording has no Memory Event, `404` recording not found.
 
 ### `POST /ai/reprocess-event/:eventId`
 
@@ -262,6 +330,6 @@ Purpose: rerun downstream AI jobs for a Memory Event.
 
 Request body: none.
 
-Response body: queued job state.
+Response body: created `AiJob` and BullMQ queued job metadata.
 
-Errors: `404` event not found.
+Errors: `400` event has no recording, `404` event not found.

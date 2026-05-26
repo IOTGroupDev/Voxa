@@ -4,6 +4,9 @@ import {
   CreateRecordingDto,
   CreateReminderDto,
   PairDeviceDto,
+  RegisterDongleRecordingMetadataDto,
+  UpdateDeviceStatusDto,
+  UpdateDongleRecordingSyncStatusDto,
   UpdateActionItemDto,
   UpdateInsightDto,
   UpdateMemoryEventDto,
@@ -26,6 +29,13 @@ export const voxaApi = {
 
   listDevices() {
     return apiClient.request('/devices');
+  },
+
+  updateDeviceStatus(deviceId: string, dto: UpdateDeviceStatusDto) {
+    return apiClient.request(`/devices/${deviceId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    });
   },
 
   createCaptureSession(dto: CreateCaptureSessionDto) {
@@ -67,6 +77,24 @@ export const voxaApi = {
       method: 'PATCH',
       body: JSON.stringify(dto),
     });
+  },
+
+  registerDongleRecordingMetadata(dto: RegisterDongleRecordingMetadataDto) {
+    return apiClient.request('/recordings/dongle/metadata', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  updateDongleRecordingSyncStatus(dto: UpdateDongleRecordingSyncStatusDto) {
+    return apiClient.request('/recordings/dongle/status', {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  listDongleRecordings(deviceId: string) {
+    return apiClient.request(`/recordings/dongle/${encodeURIComponent(deviceId)}`);
   },
 
   listRecordings() {
@@ -146,5 +174,17 @@ export const voxaApi = {
 
   search(query: string) {
     return apiClient.request(`/search?q=${encodeURIComponent(query)}`);
+  },
+
+  reprocessRecording(recordingId: string) {
+    return apiClient.request(`/ai/reprocess/${recordingId}`, {
+      method: 'POST',
+    });
+  },
+
+  reprocessEvent(eventId: string) {
+    return apiClient.request(`/ai/reprocess-event/${eventId}`, {
+      method: 'POST',
+    });
   },
 };

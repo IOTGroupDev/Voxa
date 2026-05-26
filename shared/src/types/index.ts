@@ -1,6 +1,8 @@
 import {
   ButtonGesture,
+  CaptureAvailability,
   CaptureSource,
+  DongleRecordingSyncStatus,
   InsightType,
   MemoryEventType,
   RecordingStatus,
@@ -21,6 +23,52 @@ export interface ContextSnapshot {
   buttonGesture?: ButtonGesture;
   nearbyDeviceId?: string;
   userSelectedProject?: string;
+}
+
+export interface CaptureAvailabilityState {
+  availability: CaptureAvailability;
+  canStartPhoneRecording: boolean;
+  reason?: string;
+}
+
+export interface DongleRecordingManifestItem {
+  deviceId: string;
+  localRecordingId: string;
+  createdAtDeviceTime: string;
+  durationMs: number;
+  byteSize: number;
+  codec: string;
+  sampleRate: number;
+  checksum: string;
+  syncStatus: DongleRecordingSyncStatus;
+  buttonGesture?: ButtonGesture;
+  batteryLevelAtCapture?: number;
+  firmwareVersion?: string;
+  errorFlags?: string[];
+}
+
+export interface DongleAudioChunkDescriptor {
+  recordingId: string;
+  chunkIndex: number;
+  totalChunks: number;
+  offset: number;
+  size: number;
+  checksum: string;
+}
+
+export interface DongleAudioChunk extends DongleAudioChunkDescriptor {
+  payload: Uint8Array;
+}
+
+export interface DongleStorageSnapshot {
+  deviceId: string;
+  storageCapacityBytes?: number;
+  storageUsedBytes?: number;
+  unsyncedRecordingsCount: number;
+  lastSyncAt?: string;
+  syncError?: string;
+  supportsOfflineCapture: boolean;
+  firmwareStorageVersion?: string;
 }
 
 export interface MemoryEvent {
@@ -81,8 +129,42 @@ export interface Recording {
   storagePath: string;
   durationMs?: number;
   mimeType?: string;
+  dongleSyncStatus?: DongleRecordingSyncStatus;
+  capturedOffline?: boolean;
+  transcript?: Transcript | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Transcript {
+  id: string;
+  userId: string;
+  recordingId: string;
+  language?: string;
+  text: string;
+  provider?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TimelineNote {
+  id: string;
+  title?: string;
+  summary?: string;
+  body?: string;
+  actionItems?: ActionItem[];
+  reminders?: Reminder[];
+  noteTags?: Array<{
+    tag?: {
+      name?: string;
+    };
+  }>;
+}
+
+export interface TimelineItem extends MemoryEvent {
+  recording?: Recording | null;
+  note?: TimelineNote | null;
+  memoryThread?: MemoryThread | null;
 }
 
 export interface ActionItem {

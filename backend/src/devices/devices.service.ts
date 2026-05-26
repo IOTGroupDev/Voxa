@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PairDeviceDto } from '@voxa/shared';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { DeviceStatus, PairDeviceDto, UpdateDeviceStatusDto } from '@voxa/shared';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -23,6 +23,10 @@ export class DevicesService {
       update: {
         displayName: dto.displayName,
         firmwareVersion: dto.firmwareVersion,
+        storageCapacityBytes: dto.storageCapacityBytes,
+        storageUsedBytes: dto.storageUsedBytes,
+        supportsOfflineCapture: dto.supportsOfflineCapture,
+        firmwareStorageVersion: dto.firmwareStorageVersion,
         status: 'active',
         lastSeenAt: new Date(),
       },
@@ -31,6 +35,10 @@ export class DevicesService {
         hardwareId: dto.deviceId,
         displayName: dto.displayName,
         firmwareVersion: dto.firmwareVersion,
+        storageCapacityBytes: dto.storageCapacityBytes,
+        storageUsedBytes: dto.storageUsedBytes,
+        supportsOfflineCapture: dto.supportsOfflineCapture ?? false,
+        firmwareStorageVersion: dto.firmwareStorageVersion,
         lastSeenAt: new Date(),
       },
     });
@@ -60,6 +68,10 @@ export class DevicesService {
       data: {
         displayName: dto.displayName,
         firmwareVersion: dto.firmwareVersion,
+        storageCapacityBytes: dto.storageCapacityBytes,
+        storageUsedBytes: dto.storageUsedBytes,
+        supportsOfflineCapture: dto.supportsOfflineCapture,
+        firmwareStorageVersion: dto.firmwareStorageVersion,
         lastSeenAt: new Date(),
       },
     });
@@ -70,7 +82,23 @@ export class DevicesService {
 
     return this.prisma.device.update({
       where: { id: device.id },
-      data: { status: 'revoked' },
+      data: { status: DeviceStatus.REVOKED },
+    });
+  }
+
+  async updateStatus(supabaseUserId: string, id: string, dto: UpdateDeviceStatusDto) {
+    if (!Object.values(DeviceStatus).includes(dto.status)) {
+      throw new BadRequestException('Device status is invalid.');
+    }
+
+    const device = await this.findOwnedDevice(supabaseUserId, id);
+
+    return this.prisma.device.update({
+      where: { id: device.id },
+      data: {
+        status: dto.status,
+        lastSeenAt: dto.status === DeviceStatus.ACTIVE ? new Date() : device.lastSeenAt,
+      },
     });
   }
 

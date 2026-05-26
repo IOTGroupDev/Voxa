@@ -15,7 +15,11 @@ export class TimelineService {
       where: { userId: user.id },
       orderBy: { occurredAt: 'desc' },
       include: {
-        recording: true,
+        recording: {
+          include: {
+            transcript: true,
+          },
+        },
         contextSnapshot: true,
         note: {
           include: {

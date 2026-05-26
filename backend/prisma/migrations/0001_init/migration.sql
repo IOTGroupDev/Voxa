@@ -5,7 +5,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE TYPE "MemoryEventType" AS ENUM ('quick_note', 'task', 'idea', 'important', 'reflection', 'meeting', 'manual');
 
 -- CreateEnum
-CREATE TYPE "CaptureSource" AS ENUM ('dongle', 'mobile_app');
+CREATE TYPE "CaptureSource" AS ENUM ('dongle', 'mobile_app', 'airpods_shortcut');
 
 -- CreateEnum
 CREATE TYPE "ButtonGesture" AS ENUM ('single_press', 'double_press', 'long_press', 'press_and_hold');
@@ -28,6 +28,9 @@ CREATE TYPE "CaptureSessionStatus" AS ENUM ('active', 'completed', 'cancelled');
 -- CreateEnum
 CREATE TYPE "DeviceStatus" AS ENUM ('active', 'inactive', 'lost', 'revoked');
 
+-- CreateEnum
+CREATE TYPE "DongleRecordingSyncStatus" AS ENUM ('stored_on_device', 'metadata_synced', 'transfer_in_progress', 'transferred_to_phone', 'uploaded_to_backend', 'confirmed_by_backend', 'safe_to_delete_from_device', 'sync_failed');
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
@@ -46,6 +49,10 @@ CREATE TABLE "Device" (
     "hardwareId" TEXT NOT NULL,
     "displayName" TEXT,
     "firmwareVersion" TEXT,
+    "storageCapacityBytes" INTEGER,
+    "storageUsedBytes" INTEGER,
+    "supportsOfflineCapture" BOOLEAN NOT NULL DEFAULT false,
+    "firmwareStorageVersion" TEXT,
     "status" "DeviceStatus" NOT NULL DEFAULT 'active',
     "pairedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "lastSeenAt" TIMESTAMP(3),
@@ -68,6 +75,14 @@ CREATE TABLE "Recording" (
     "durationMs" INTEGER,
     "sizeBytes" INTEGER,
     "uploadedAt" TIMESTAMP(3),
+    "deviceLocalRecordingId" TEXT,
+    "originalDeviceId" TEXT,
+    "capturedOffline" BOOLEAN NOT NULL DEFAULT false,
+    "dongleSyncStatus" "DongleRecordingSyncStatus",
+    "deviceCreatedAt" TIMESTAMP(3),
+    "deviceDurationMs" INTEGER,
+    "deviceAudioCodec" TEXT,
+    "deviceChecksum" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -342,6 +357,12 @@ CREATE INDEX "Recording_userId_status_idx" ON "Recording"("userId", "status");
 CREATE INDEX "Recording_deviceId_idx" ON "Recording"("deviceId");
 
 -- CreateIndex
+CREATE INDEX "Recording_dongleSyncStatus_idx" ON "Recording"("dongleSyncStatus");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Recording_deviceId_deviceLocalRecordingId_key" ON "Recording"("deviceId", "deviceLocalRecordingId");
+
+-- CreateIndex
 CREATE INDEX "Recording_createdAt_idx" ON "Recording"("createdAt");
 
 -- CreateIndex
@@ -592,4 +613,3 @@ ALTER TABLE "SyncItem" ADD CONSTRAINT "SyncItem_userId_fkey" FOREIGN KEY ("userI
 
 -- AddForeignKey
 ALTER TABLE "SyncItem" ADD CONSTRAINT "SyncItem_recordingId_fkey" FOREIGN KEY ("recordingId") REFERENCES "Recording"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-

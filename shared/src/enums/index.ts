@@ -11,6 +11,7 @@ export enum MemoryEventType {
 export enum CaptureSource {
   DONGLE = 'dongle',
   MOBILE_APP = 'mobile_app',
+  AIRPODS_SHORTCUT = 'airpods_shortcut',
 }
 
 export enum ButtonGesture {
@@ -57,6 +58,31 @@ export enum DongleConnectionState {
   RECORDING = 'recording',
   LOW_BATTERY = 'low_battery',
   ERROR = 'error',
+}
+
+export enum DeviceStatus {
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+  LOST = 'lost',
+  REVOKED = 'revoked',
+}
+
+export enum CaptureAvailability {
+  READY = 'ready',
+  PHONE_LOCKED_READY = 'phone_locked_ready',
+  PHONE_BACKGROUND_LIMITED = 'phone_background_limited',
+  PHONE_UNAVAILABLE = 'phone_unavailable',
+}
+
+export enum DongleRecordingSyncStatus {
+  STORED_ON_DEVICE = 'stored_on_device',
+  METADATA_SYNCED = 'metadata_synced',
+  TRANSFER_IN_PROGRESS = 'transfer_in_progress',
+  TRANSFERRED_TO_PHONE = 'transferred_to_phone',
+  UPLOADED_TO_BACKEND = 'uploaded_to_backend',
+  CONFIRMED_BY_BACKEND = 'confirmed_by_backend',
+  SAFE_TO_DELETE_FROM_DEVICE = 'safe_to_delete_from_device',
+  SYNC_FAILED = 'sync_failed',
 }
 
 export enum AiJobType {

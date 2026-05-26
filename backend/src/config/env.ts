@@ -5,5 +5,6 @@ export interface EnvConfig {
   supabaseServiceRoleKey: string;
   redisUrl: string;
   aiProvider?: string;
+  sttProvider?: string;
+  sttHttpEndpoint?: string;
 }
-

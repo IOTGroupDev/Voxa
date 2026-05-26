@@ -14,12 +14,18 @@ function normalizeGesture(type: string): ButtonGesture {
 export function useMockDongleCapture() {
   useEffect(() => {
     return mockDongleService.onButtonEvent((event) => {
-      void runMockCapture({
-        source: CaptureSource.DONGLE,
-        buttonGesture: normalizeGesture(event.type),
-        deviceId: event.deviceId,
+      void mockDongleService.getCaptureAvailability().then((availability) => {
+        if (!availability.canStartPhoneRecording) {
+          void mockDongleService.vibrate();
+          return;
+        }
+
+        void runMockCapture({
+          source: CaptureSource.DONGLE,
+          buttonGesture: normalizeGesture(event.type),
+          deviceId: event.deviceId,
+        });
       });
     });
   }, []);
 }
-

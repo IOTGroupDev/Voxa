@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { QueueModule } from '../queue/queue.module';
+import { AiModule } from '../ai/ai.module';
+import { StorageModule } from '../storage/storage.module';
 import { ClassificationWorker } from './classification.worker';
 import { CleanupWorker } from './cleanup.worker';
 import { EmbeddingWorker } from './embedding.worker';
@@ -11,7 +13,7 @@ import { TimelineWorker } from './timeline.worker';
 import { RecordingUploadedWorker, TranscriptionWorker } from './transcription.worker';
 
 @Module({
-  imports: [QueueModule],
+  imports: [QueueModule, AiModule, StorageModule],
   providers: [
     TranscriptionWorker,
     RecordingUploadedWorker,

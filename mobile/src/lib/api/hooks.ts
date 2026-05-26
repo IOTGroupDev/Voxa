@@ -28,7 +28,13 @@ export function useMeQuery() {
 }
 
 export function useTimelineQuery() {
-  return useQuery({ queryKey: queryKeys.timeline, queryFn: () => voxaApi.getTimeline() });
+  return useQuery({
+    queryKey: queryKeys.timeline,
+    queryFn: () => voxaApi.getTimeline(),
+    refetchInterval(query) {
+      return hasActiveTimelineProcessing(query.state.data) ? 5000 : false;
+    },
+  });
 }
 
 export function useNotesQuery() {
@@ -114,4 +120,71 @@ export function useUpdateInsightMutation() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.memoryThreads });
     },
   });
+}
+
+export function useReprocessEventMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (eventId: string) => voxaApi.reprocessEvent(eventId),
+    onSuccess() {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.timeline });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.memoryThreads });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.insights });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notes });
+    },
+  });
+}
+
+export function useReprocessRecordingMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (recordingId: string) => voxaApi.reprocessRecording(recordingId),
+    onSuccess() {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.recordings });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.timeline });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.memoryThreads });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.insights });
+    },
+  });
+}
+
+function hasActiveTimelineProcessing(data: unknown) {
+  if (!Array.isArray(data)) {
+    return false;
+  }
+
+  return data.some((item) => {
+    if (!item || typeof item !== 'object') {
+      return false;
+    }
+
+    const processingStatus = getStringValue(item, 'processingStatus');
+    const recording = getObjectValue(item, 'recording');
+    const recordingStatus = recording ? getStringValue(recording, 'status') : undefined;
+    const dongleSyncStatus = recording ? getStringValue(recording, 'dongleSyncStatus') : undefined;
+
+    return (
+      processingStatus === 'created' ||
+      processingStatus === 'transcription_retrying' ||
+      processingStatus === 'transcript_created' ||
+      processingStatus === 'summary_created' ||
+      recordingStatus === 'uploading' ||
+      recordingStatus === 'uploaded' ||
+      recordingStatus === 'processing' ||
+      dongleSyncStatus === 'metadata_synced' ||
+      dongleSyncStatus === 'transfer_in_progress' ||
+      dongleSyncStatus === 'transferred_to_phone' ||
+      dongleSyncStatus === 'uploaded_to_backend'
+    );
+  });
+}
+
+function getObjectValue(value: object, key: string): Record<string, unknown> | undefined {
+  const result = (value as Record<string, unknown>)[key];
+  return result && typeof result === 'object' ? (result as Record<string, unknown>) : undefined;
+}
+
+function getStringValue(value: object, key: string): string | undefined {
+  const result = (value as Record<string, unknown>)[key];
+  return typeof result === 'string' ? result : undefined;
 }

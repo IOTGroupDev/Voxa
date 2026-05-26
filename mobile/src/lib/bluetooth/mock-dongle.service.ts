@@ -1,4 +1,4 @@
-import { ButtonGesture, DongleConnectionState } from '@voxa/shared';
+import { ButtonGesture, CaptureAvailability, DongleConnectionState } from '@voxa/shared';
 import {
   DongleBatteryStatus,
   DongleButtonEvent,
@@ -26,6 +26,21 @@ export class MockDongleService implements DongleControlService {
 
   getConnection(): DongleConnection | null {
     return this.connection;
+  }
+
+  async getCaptureAvailability() {
+    if (!this.connection) {
+      return {
+        availability: CaptureAvailability.PHONE_UNAVAILABLE,
+        canStartPhoneRecording: false,
+        reason: 'Phone app is not connected to the mock dongle.',
+      };
+    }
+
+    return {
+      availability: CaptureAvailability.READY,
+      canStartPhoneRecording: true,
+    };
   }
 
   async getBatteryStatus(): Promise<DongleBatteryStatus> {
@@ -64,4 +79,3 @@ export class MockDongleService implements DongleControlService {
     this.handlers.forEach((handler) => handler(event));
   }
 }
-

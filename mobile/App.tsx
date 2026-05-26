@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { HomeScreen } from './src/app/HomeScreen';
+import { AppShell } from './src/app/AppShell';
 import { useMockDongleCapture } from './src/features/devices/useMockDongleCapture';
 import { useOfflineSyncOnReconnect } from './src/lib/storage/useOfflineSyncOnReconnect';
 
@@ -11,7 +11,7 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <HomeScreen />
+      <AppShell />
     </QueryClientProvider>
   );
 }

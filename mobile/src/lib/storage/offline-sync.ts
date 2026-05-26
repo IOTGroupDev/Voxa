@@ -1,5 +1,6 @@
 import { CaptureSource, CreateCaptureSessionDto, RecordingStatus } from '@voxa/shared';
 import { voxaApi } from '../api/voxa-api';
+import { uploadAudioFileToSignedUrl } from './audio-file-upload';
 import { SQLiteMemoryStore } from './sqlite-memory-store';
 import { UploadQueue } from './upload-queue';
 
@@ -37,8 +38,8 @@ export class OfflineSyncCoordinator {
           deviceId: capturePayload?.deviceId,
           mimeType: 'audio/mp4',
         });
-        await voxaApi.createRecordingUploadUrl(recording.id);
-        // TODO: Upload item.localUri to Supabase signed URL when real audio files are wired.
+        const upload = await voxaApi.createRecordingUploadUrl(recording.id);
+        await uploadAudioFileToSignedUrl(item.localUri, upload);
         await voxaApi.updateRecordingStatus(recording.id, { status: RecordingStatus.UPLOADED });
         if (captureSession) {
           await voxaApi.completeCaptureSession(captureSession.id, {

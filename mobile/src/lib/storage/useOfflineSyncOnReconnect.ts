@@ -1,5 +1,6 @@
 import NetInfo from '@react-native-community/netinfo';
 import { useEffect, useRef } from 'react';
+import { dongleBackendSyncCoordinator } from '../bluetooth/storage/singletons';
 import { offlineSyncCoordinator } from './singletons';
 
 export function useOfflineSyncOnReconnect() {
@@ -20,7 +21,10 @@ export function useOfflineSyncOnReconnect() {
       }
 
       syncInFlight.current = true;
-      void offlineSyncCoordinator.retryPendingUploads().finally(() => {
+      void Promise.all([
+        offlineSyncCoordinator.retryPendingUploads(),
+        dongleBackendSyncCoordinator.retryPendingBackendSync(),
+      ]).finally(() => {
         wasOffline.current = false;
         syncInFlight.current = false;
       });
@@ -29,4 +33,3 @@ export function useOfflineSyncOnReconnect() {
     return unsubscribe;
   }, []);
 }
-

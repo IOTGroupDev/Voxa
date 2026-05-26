@@ -1,4 +1,4 @@
-import { ButtonGesture, DongleConnectionState } from '@voxa/shared';
+import { ButtonGesture, CaptureAvailabilityState, DongleConnectionState } from '@voxa/shared';
 
 export type DongleButtonEventType =
   | ButtonGesture.SINGLE_PRESS
@@ -41,9 +41,9 @@ export interface DongleControlService {
   connect(deviceId: string): Promise<DongleConnection>;
   disconnect(): Promise<void>;
   getConnection(): DongleConnection | null;
+  getCaptureAvailability(): Promise<CaptureAvailabilityState>;
   getBatteryStatus(): Promise<DongleBatteryStatus>;
   setRecordingIndicator(active: boolean): Promise<void>;
   vibrate(): Promise<void>;
   onButtonEvent(handler: (event: DongleButtonEvent) => void): () => void;
 }
-

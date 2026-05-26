@@ -10,13 +10,16 @@
 
 ## Phase 2: Capture
 
-- Implement mobile manual recording.
+- Implement mobile manual recording with local `expo-audio` file capture.
+- Add three capture start choices: phone button, AirPods/Siri Shortcut, and Voxa dongle.
 - Implement mock dongle events in app flows.
+- Add architecture-only interfaces for future autonomous dongle storage.
+- Persist future dongle backend-sync retry state locally with SQLite.
 - Persist unsynced local captures with SQLite.
 - Retry queued uploads when backend access returns.
 - Create capture sessions.
 - Generate signed upload URLs.
-- Upload audio to `audio-private`.
+- Upload audio file bytes to `audio-private` through signed upload URLs.
 
 ## Phase 3: Memory Events
 
@@ -44,8 +47,8 @@
 
 - production BLE implementation;
 - production Bluetooth audio implementation;
-- offline dongle storage;
-- BLE file synchronization;
+- runtime offline dongle storage;
+- runtime BLE file synchronization;
 - realtime transcription;
 - always-on recording;
 - stealth recording;
@@ -54,3 +57,11 @@
 - subscriptions;
 - hardware OTA implementation;
 - polished final UI.
+
+## Future Hardware Track
+
+- Autonomous dongle storage with SPI NOR Flash.
+- Append-only device recording log.
+- Chunked encrypted sync from dongle to phone.
+- Secure erase after backend confirmation.
+- Resume and corruption recovery for interrupted transfers.

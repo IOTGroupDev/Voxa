@@ -1,5 +1,10 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
-import { CreateRecordingDto, UpdateRecordingStatusDto } from '@voxa/shared';
+import {
+  CreateRecordingDto,
+  RegisterDongleRecordingMetadataDto,
+  UpdateDongleRecordingSyncStatusDto,
+  UpdateRecordingStatusDto,
+} from '@voxa/shared';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/auth.service';
 import { RecordingsService } from './recordings.service';
@@ -11,6 +16,27 @@ export class RecordingsController {
   @Post()
   create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateRecordingDto) {
     return this.recordingsService.create(user.supabaseUserId, user.email, dto);
+  }
+
+  @Post('dongle/metadata')
+  registerDongleMetadata(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: RegisterDongleRecordingMetadataDto,
+  ) {
+    return this.recordingsService.registerDongleMetadata(user.supabaseUserId, user.email, dto);
+  }
+
+  @Patch('dongle/status')
+  updateDongleSyncStatus(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateDongleRecordingSyncStatusDto,
+  ) {
+    return this.recordingsService.updateDongleSyncStatus(user.supabaseUserId, dto);
+  }
+
+  @Get('dongle/:deviceId')
+  listDongleRecordings(@CurrentUser() user: AuthenticatedUser, @Param('deviceId') deviceId: string) {
+    return this.recordingsService.listDongleRecordings(user.supabaseUserId, deviceId);
   }
 
   @Post(':id/upload-url')

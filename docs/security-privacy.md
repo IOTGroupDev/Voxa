@@ -19,6 +19,8 @@ Voxa must treat audio and memory data as private by default.
 
 The app must clearly show when recording is active. The dongle should expose LED or vibration indication for recording state. Recording without visible indication is out of scope.
 
+The app must not imply guaranteed or hidden capture from a locked, suspended, or powered-off phone. If the phone cannot start or continue recording, the product should show a missed or unavailable capture state instead of creating a fake memory.
+
 ## RLS Policy Style
 
 For all user-owned tables, policies should enforce:

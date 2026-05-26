@@ -2,7 +2,7 @@
 
 Voxa is an MVP foundation for a continuity memory system paired with a Bluetooth voice dongle.
 
-The product captures voice through the phone or a connected dongle, adds context, uploads audio to a backend when available, and turns recordings into Memory Events, Memory Threads, rare Insights, timeline entries, and searchable memory.
+The product captures voice through the phone, AirPods/Siri Shortcuts, or a connected dongle, adds context, uploads audio to a backend when available, and turns recordings into Memory Events, Memory Threads, rare Insights, timeline entries, and searchable memory.
 
 Voxa is not a chatbot or productivity dashboard. The primary flow is capture, memory, retrieval, and insight.
 
@@ -34,11 +34,21 @@ Workers are registered inside the NestJS app for the MVP. Running the backend wi
 
 The current AI pipeline is mock-backed end to end. Capture completion creates a transcription `AiJob`, workers produce mock transcript/note/action/reminder/chunk/daily-summary records, and provider integrations remain TODOs.
 
-Mobile local-first scaffolding uses `expo-sqlite` for local memory drafts and the upload queue, NetInfo for reconnect detection, and an upload retry coordinator. Real audio file upload to Supabase signed URLs is still TODO.
+Server-side CPU STT can be enabled with `STT_PROVIDER=whisper_http` and `STT_HTTP_ENDPOINT`; see `docs/server-stt.md`.
 
-Hardware and audio remain mocked. A mock capture records locally first and only then attempts backend sync; failed sync leaves a pending SQLite upload item for retry.
+Mobile local-first scaffolding uses `expo-sqlite` for local memory drafts and the upload queue, NetInfo for reconnect detection, and an upload retry coordinator.
+
+Manual mobile audio recording uses `expo-audio` to create a local recording URI before backend sync. Audio file upload uses `expo-file-system` against backend-generated Supabase signed upload URLs when storage is configured. A mock capture path remains available for fast manual testing.
 
 Mock dongle pairing is wired end to end: the mobile mock dongle can pair through the backend device API, and mock button events trigger local-first capture.
+
+Important hardware constraint: in the MVP, the dongle does not store audio offline. If the phone is powered off or unavailable, a dongle button press cannot create an audio recording; the dongle should provide failure feedback instead.
+
+Planned hardware v2 may add autonomous dongle storage with SPI NOR Flash, encrypted append-only audio chunks, and delayed sync. That work is architecture-only in this repository right now and is not part of MVP v1 runtime behavior.
+
+The mobile app currently uses a simple in-app shell for manual MVP testing across Home, Capture, Device, Timeline, Threads, Insights, Notes, Open Loops, and Search. This is intentionally not polished production navigation.
+
+Manual reprocessing is wired for mock AI: backend `POST /ai/reprocess/:recordingId` and `POST /ai/reprocess-event/:eventId` create `AiJob` records and enqueue the pipeline.
 
 ## Environment Variables
 
@@ -51,6 +61,8 @@ SUPABASE_JWT_SECRET=
 SUPABASE_SERVICE_ROLE_KEY=
 REDIS_URL=
 AI_PROVIDER=
+STT_PROVIDER=mock
+STT_HTTP_ENDPOINT=
 ```
 
 Mobile:

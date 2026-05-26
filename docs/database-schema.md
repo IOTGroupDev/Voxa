@@ -5,9 +5,9 @@ The Prisma draft is in `backend/prisma/schema.prisma`.
 ## Core Models
 
 - `User`: local product record linked to `supabaseUserId`.
-- `Device`: paired Bluetooth dongle metadata.
+- `Device`: paired Bluetooth dongle metadata, including future offline-storage capability flags.
 - `CaptureSession`: durable capture lifecycle from mobile/dongle trigger to completed or cancelled recording.
-- `Recording`: private audio file metadata and processing status.
+- `Recording`: private audio file metadata, processing status, and optional device-origin offline capture metadata.
 - `MemoryEvent`: primary domain object combining capture source, context, recording, AI interpretation, and timeline identity.
 - `MemoryThread`: long-term thematic thread for recurring semantic patterns.
 - `ContextSnapshot`: privacy-first context captured at recording time.
@@ -25,6 +25,32 @@ The Prisma draft is in `backend/prisma/schema.prisma`.
 ## Ownership
 
 All user-owned tables include `userId`. Supabase RLS should enforce `user_id = auth.uid()` at the SQL policy layer after mapping product users to Supabase users.
+
+## Future Dongle Storage Fields
+
+Autonomous dongle storage is architecture-only for now. The schema reserves fields without implementing firmware or BLE file transfer.
+
+`Device` stores:
+
+- `storageCapacityBytes`;
+- `storageUsedBytes`;
+- `supportsOfflineCapture`;
+- `firmwareStorageVersion`.
+
+`Recording` stores:
+
+- `deviceLocalRecordingId`;
+- `originalDeviceId`;
+- `capturedOffline`;
+- `dongleSyncStatus`;
+- `deviceCreatedAt`;
+- `deviceDurationMs`;
+- `deviceAudioCodec`;
+- `deviceChecksum`.
+
+`deviceId + deviceLocalRecordingId` is unique so the phone/backend can resume sync idempotently.
+
+Mobile also keeps a local SQLite `dongle_backend_sync_queue` for recordings already transferred from dongle to phone but not yet acknowledged by the backend. This queue is local-only and retries on network reconnect.
 
 ## pgvector
 

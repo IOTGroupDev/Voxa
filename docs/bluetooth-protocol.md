@@ -52,3 +52,4 @@ Single press creates a quick memory capture. Double press creates a task/action-
 
 The dongle must visibly indicate active recording through LED or vibration behavior. No stealth recording is supported.
 
+If the phone is unavailable, powered off, disconnected, or unable to start phone-side recording, the MVP dongle does not record audio by itself. It should indicate failure through LED/vibration behavior. See `docs/hardware-capture-constraints.md`.

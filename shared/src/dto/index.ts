@@ -1,5 +1,12 @@
-import { ButtonGesture, CaptureSource, MemoryEventType, RecordingStatus } from '../enums';
-import { ContextSnapshot } from '../types';
+import {
+  ButtonGesture,
+  CaptureSource,
+  DeviceStatus,
+  DongleRecordingSyncStatus,
+  MemoryEventType,
+  RecordingStatus,
+} from '../enums';
+import { ContextSnapshot, DongleAudioChunkDescriptor, DongleRecordingManifestItem } from '../types';
 
 export interface ApiErrorResponse {
   error: string;
@@ -50,6 +57,34 @@ export interface PairDeviceDto {
   deviceId: string;
   displayName?: string;
   firmwareVersion?: string;
+  storageCapacityBytes?: number;
+  storageUsedBytes?: number;
+  supportsOfflineCapture?: boolean;
+  firmwareStorageVersion?: string;
+}
+
+export interface UpdateDeviceStatusDto {
+  status: DeviceStatus;
+}
+
+export interface RegisterDongleRecordingMetadataDto extends DongleRecordingManifestItem {}
+
+export interface RequestDongleAudioChunkDto {
+  deviceId: string;
+  localRecordingId: string;
+  chunkIndex: number;
+}
+
+export interface ConfirmDongleAudioChunkDto extends DongleAudioChunkDescriptor {
+  deviceId: string;
+  localRecordingId: string;
+}
+
+export interface UpdateDongleRecordingSyncStatusDto {
+  deviceId: string;
+  localRecordingId: string;
+  syncStatus: DongleRecordingSyncStatus;
+  error?: string;
 }
 
 export interface UpdateActionItemDto {

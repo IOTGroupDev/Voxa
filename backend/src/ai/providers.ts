@@ -1,7 +1,15 @@
 import { MemoryEventType } from '@voxa/shared';
 
+export interface SpeechToTextProviderInput {
+  recordingId: string;
+  storagePath: string;
+  signedUrl?: string;
+  mimeType?: string | null;
+  durationMs?: number | null;
+}
+
 export interface SpeechToTextProvider {
-  transcribe(input: { recordingId: string; storagePath: string }): Promise<{ text: string }>;
+  transcribe(input: SpeechToTextProviderInput): Promise<{ text: string; provider: string; language?: string }>;
 }
 
 export interface SummaryProvider {

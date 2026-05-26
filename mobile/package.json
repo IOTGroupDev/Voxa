@@ -15,6 +15,8 @@
     "@supabase/supabase-js": "^2.44.0",
     "@tanstack/react-query": "^5.40.0",
     "expo": "~56.0.4",
+    "expo-audio": "~56.0.10",
+    "expo-file-system": "~56.0.7",
     "expo-sqlite": "~56.0.4",
     "react": "19.2.3",
     "react-native": "0.85.3",

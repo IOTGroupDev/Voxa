@@ -38,13 +38,17 @@ The first implemented backend flow persists users by Supabase JWT subject, creat
 
 Capture completion also creates an `AiJob` and enqueues the first BullMQ step. The current worker path uses a mock transcript and is ready to be replaced by a real speech-to-text provider.
 
+The transcription worker now supports a provider factory. MVP can use a CPU-only HTTP STT service running `whisper.cpp` or `faster-whisper`, while keeping mobile free of native Whisper dependencies.
+
 The current functional API surface exposes generated artifacts through notes, actions, reminders, timeline, daily summary, and keyword search endpoints.
 
 The updated master task adds hybrid local-first expectations. Mobile owns capture resilience through local cache, SQLite-backed upload queue, temporary memory state, `expo-sqlite` storage, and network reconnect retry via NetInfo. Backend remains the enrichment layer for transcription, semantic memory, Memory Threads, Insights, and long-term search.
 
-Mock capture now writes local drafts and upload queue entries before any backend call. If backend sync fails, capture still completes locally and retry can run later.
+Manual capture can use `expo-audio` to create a local recording URI. The capture start surface has three paths: phone button, AirPods/Siri Shortcut, and Voxa dongle. Mock capture and real manual capture both write local drafts and upload queue entries before any backend call. Audio file upload uses `expo-file-system` and backend-generated Supabase signed upload URLs. If backend sync fails, capture still completes locally and retry can run later.
 
 Device pairing is Prisma-backed on the backend. Mobile uses a singleton `MockDongleService`; mock button events trigger the same local-first capture flow as manual capture.
+
+Hardware capture depends on phone availability in the MVP. The dongle can trigger capture and provide microphone input, but it does not store audio offline. If the phone is off or unavailable, no audio recording is created; future guaranteed off-phone capture would require onboard dongle recording and later sync.
 
 ## Shared
 

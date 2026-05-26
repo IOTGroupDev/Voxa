@@ -20,6 +20,7 @@ enum MemoryEventType {
 enum CaptureSource {
   dongle
   mobile_app
+  airpods_shortcut
 }
 
 enum ButtonGesture {
@@ -84,6 +85,17 @@ enum DeviceStatus {
   revoked
 }
 
+enum DongleRecordingSyncStatus {
+  stored_on_device
+  metadata_synced
+  transfer_in_progress
+  transferred_to_phone
+  uploaded_to_backend
+  confirmed_by_backend
+  safe_to_delete_from_device
+  sync_failed
+}
+
 model User {
   id             String            @id @default(uuid())
   supabaseUserId String            @unique
@@ -118,6 +130,10 @@ model Device {
   hardwareId      String
   displayName     String?
   firmwareVersion String?
+  storageCapacityBytes Int?
+  storageUsedBytes Int?
+  supportsOfflineCapture Boolean @default(false)
+  firmwareStorageVersion String?
   status          DeviceStatus @default(active)
   pairedAt        DateTime     @default(now())
   lastSeenAt      DateTime?
@@ -146,6 +162,14 @@ model Recording {
   durationMs    Int?
   sizeBytes     Int?
   uploadedAt    DateTime?
+  deviceLocalRecordingId String?
+  originalDeviceId String?
+  capturedOffline Boolean @default(false)
+  dongleSyncStatus DongleRecordingSyncStatus?
+  deviceCreatedAt DateTime?
+  deviceDurationMs Int?
+  deviceAudioCodec String?
+  deviceChecksum String?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
   memoryEvent   MemoryEvent?
@@ -156,6 +180,8 @@ model Recording {
 
   @@index([userId, status])
   @@index([deviceId])
+  @@index([dongleSyncStatus])
+  @@unique([deviceId, deviceLocalRecordingId])
   @@index([createdAt])
 }
 
