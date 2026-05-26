@@ -29,6 +29,9 @@ export class TimelineService {
           },
         },
         memoryThread: true,
+        aiJobs: {
+          orderBy: { createdAt: 'asc' },
+        },
       },
     });
   }

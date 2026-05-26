@@ -3,6 +3,8 @@ import {
   CaptureAvailability,
   CaptureSource,
   DongleRecordingSyncStatus,
+  AiJobStatus,
+  AiJobType,
   InsightType,
   MemoryEventType,
   RecordingStatus,
@@ -161,10 +163,27 @@ export interface TimelineNote {
   }>;
 }
 
+export interface AiJob {
+  id: string;
+  userId: string;
+  type: AiJobType;
+  status: AiJobStatus;
+  recordingId?: string;
+  memoryEventId?: string;
+  attempts: number;
+  lastError?: string;
+  scheduledAt?: string;
+  startedAt?: string;
+  completedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface TimelineItem extends MemoryEvent {
   recording?: Recording | null;
   note?: TimelineNote | null;
   memoryThread?: MemoryThread | null;
+  aiJobs?: AiJob[];
 }
 
 export interface ActionItem {

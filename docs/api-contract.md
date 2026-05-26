@@ -276,7 +276,7 @@ Purpose: return user timeline built from Memory Events.
 
 Request body: none.
 
-Response body: Memory Events with recording, recording transcript, context snapshot, note, action items, reminders, tags, and memory thread.
+Response body: Memory Events with recording, recording transcript, context snapshot, note, action items, reminders, tags, memory thread, and AI jobs.
 
 Mobile uses these fields to show capture pipeline details:
 
@@ -287,6 +287,10 @@ Mobile uses these fields to show capture pipeline details:
 - `note.summary`
 - `note.actionItems`
 - `memoryThread.title`
+- `aiJobs[].type`
+- `aiJobs[].status`
+- `aiJobs[].attempts`
+- `aiJobs[].lastError`
 
 Errors: `401` invalid token.
 

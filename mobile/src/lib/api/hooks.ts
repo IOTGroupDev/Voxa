@@ -160,10 +160,20 @@ function hasActiveTimelineProcessing(data: unknown) {
 
     const processingStatus = getStringValue(item, 'processingStatus');
     const recording = getObjectValue(item, 'recording');
+    const aiJobs = getArrayValue(item, 'aiJobs');
     const recordingStatus = recording ? getStringValue(recording, 'status') : undefined;
     const dongleSyncStatus = recording ? getStringValue(recording, 'dongleSyncStatus') : undefined;
+    const hasRunningAiJob = aiJobs.some((job) => {
+      if (!job || typeof job !== 'object') {
+        return false;
+      }
+
+      const status = getStringValue(job, 'status');
+      return status === 'pending' || status === 'processing' || status === 'retrying';
+    });
 
     return (
+      hasRunningAiJob ||
       processingStatus === 'created' ||
       processingStatus === 'transcription_retrying' ||
       processingStatus === 'transcript_created' ||
@@ -177,6 +187,11 @@ function hasActiveTimelineProcessing(data: unknown) {
       dongleSyncStatus === 'uploaded_to_backend'
     );
   });
+}
+
+function getArrayValue(value: object, key: string): unknown[] {
+  const result = (value as Record<string, unknown>)[key];
+  return Array.isArray(result) ? result : [];
 }
 
 function getObjectValue(value: object, key: string): Record<string, unknown> | undefined {

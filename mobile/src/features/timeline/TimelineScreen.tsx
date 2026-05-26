@@ -1,6 +1,14 @@
 import { useState } from 'react';
 import { Button, Pressable, StyleSheet, Text, View } from 'react-native';
-import { CaptureSource, DongleRecordingSyncStatus, RecordingStatus, TimelineItem } from '@voxa/shared';
+import {
+  AiJob,
+  AiJobStatus,
+  AiJobType,
+  CaptureSource,
+  DongleRecordingSyncStatus,
+  RecordingStatus,
+  TimelineItem,
+} from '@voxa/shared';
 import { DataStateScreen } from '../../app/DataStateScreen';
 import { useReprocessEventMutation, useTimelineQuery } from '../../lib/api/hooks';
 
@@ -75,6 +83,7 @@ function TimelineDetails({ item }: { item: TimelineItem }) {
   return (
     <View style={styles.details}>
       <DetailRow label="Pipeline" value={describePipeline(item)} />
+      <AiJobStages jobs={item.aiJobs ?? []} />
       <DetailRow label="Transcript" value={transcript?.text ?? 'Waiting for transcription'} />
       <DetailRow label="Summary" value={note?.summary ?? note?.body ?? 'Waiting for summary'} />
       <DetailRow label="Thread" value={item.memoryThread?.title ?? 'Not attached yet'} />
@@ -100,6 +109,33 @@ function TimelineDetails({ item }: { item: TimelineItem }) {
   );
 }
 
+function AiJobStages({ jobs }: { jobs: AiJob[] }) {
+  if (!jobs.length) {
+    return <DetailRow label="AI jobs" value="No AI jobs have been created yet" />;
+  }
+
+  return (
+    <View style={styles.detailBlock}>
+      <Text style={styles.detailLabel}>AI jobs</Text>
+      <View style={styles.stageList}>
+        {pipelineStages.map((stage) => {
+          const job = findLatestJob(jobs, stage.type);
+          return (
+            <View key={stage.type} style={styles.stageRow}>
+              <View style={[styles.stageDot, stageDotStyle(job?.status)]} />
+              <View style={styles.stageBody}>
+                <Text style={styles.stageTitle}>{stage.label}</Text>
+                <Text style={styles.stageMeta}>{describeAiJob(job)}</Text>
+                {job?.lastError ? <Text style={styles.stageError}>{job.lastError}</Text> : null}
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.detailBlock}>
@@ -107,6 +143,44 @@ function DetailRow({ label, value }: { label: string; value: string }) {
       <Text style={styles.detailValue}>{value}</Text>
     </View>
   );
+}
+
+const pipelineStages: Array<{ type: AiJobType; label: string }> = [
+  { type: AiJobType.TRANSCRIPTION, label: 'Transcription' },
+  { type: AiJobType.CLASSIFICATION, label: 'Classification' },
+  { type: AiJobType.SUMMARY, label: 'Summary' },
+  { type: AiJobType.ACTION_EXTRACTION, label: 'Actions' },
+  { type: AiJobType.REMINDER_SUGGESTION, label: 'Reminders' },
+  { type: AiJobType.EMBEDDING, label: 'Embedding' },
+  { type: AiJobType.TIMELINE_UPDATE, label: 'Timeline' },
+  { type: AiJobType.INSIGHT, label: 'Insight' },
+];
+
+function findLatestJob(jobs: AiJob[], type: AiJobType): AiJob | undefined {
+  return jobs.filter((job) => job.type === type).sort((a, b) => compareDateDesc(a.createdAt, b.createdAt))[0];
+}
+
+function compareDateDesc(a: string, b: string) {
+  return new Date(b).getTime() - new Date(a).getTime();
+}
+
+function describeAiJob(job?: AiJob): string {
+  if (!job) {
+    return 'Waiting';
+  }
+
+  const attempts = job.attempts ? ` · ${job.attempts} attempt${job.attempts === 1 ? '' : 's'}` : '';
+  const time = job.completedAt ?? job.startedAt ?? job.createdAt;
+
+  return `${job.status}${attempts} · ${formatShortTime(time)}`;
+}
+
+function formatShortTime(value?: string): string {
+  if (!value) {
+    return 'no time';
+  }
+
+  return new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 function describeTimelineStatus(item: TimelineItem): TimelineStatus {
@@ -276,6 +350,22 @@ function statusTextToneStyle(tone: TimelineStatusTone) {
   return tone === 'failed' ? styles.statusTextFailed : styles.statusTextDefault;
 }
 
+function stageDotStyle(status?: AiJobStatus) {
+  switch (status) {
+    case AiJobStatus.COMPLETED:
+      return styles.stageDotCompleted;
+    case AiJobStatus.PROCESSING:
+    case AiJobStatus.RETRYING:
+    case AiJobStatus.PENDING:
+      return styles.stageDotWorking;
+    case AiJobStatus.FAILED:
+    case AiJobStatus.CANCELLED:
+      return styles.stageDotFailed;
+    default:
+      return styles.stageDotWaiting;
+  }
+}
+
 const styles = StyleSheet.create({
   item: {
     gap: 8,
@@ -367,6 +457,49 @@ const styles = StyleSheet.create({
     color: '#111827',
     fontSize: 13,
     lineHeight: 18,
+  },
+  stageList: {
+    gap: 8,
+  },
+  stageRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  stageDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginTop: 4,
+  },
+  stageDotWaiting: {
+    backgroundColor: '#d1d5db',
+  },
+  stageDotWorking: {
+    backgroundColor: '#0284c7',
+  },
+  stageDotCompleted: {
+    backgroundColor: '#16a34a',
+  },
+  stageDotFailed: {
+    backgroundColor: '#dc2626',
+  },
+  stageBody: {
+    flex: 1,
+    gap: 2,
+  },
+  stageTitle: {
+    color: '#111827',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  stageMeta: {
+    color: '#4b5563',
+    fontSize: 12,
+  },
+  stageError: {
+    color: '#991b1b',
+    fontSize: 12,
+    lineHeight: 16,
   },
   empty: {
     gap: 6,
