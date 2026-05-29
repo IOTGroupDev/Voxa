@@ -4,14 +4,14 @@ import {
   CreateCaptureSessionDto,
   RecordingStatus,
 } from '@voxa/shared';
-import { ExpoAudioRecorder } from '../../lib/audio/expo-audio-recorder';
-import { AudioRecorder, MockAudioRecorder, RecordingSession } from '../../lib/audio/recording-session';
-import { createContextSnapshot } from '../../lib/context/context-snapshot';
-import { voxaApi } from '../../lib/api/voxa-api';
-import { uploadAudioFileToSignedUrl } from '../../lib/storage/audio-file-upload';
-import { localUploadQueue, sqliteMemoryStore } from '../../lib/storage/singletons';
+import { ExpoAudioRecorder } from '@/lib/audio/expo-audio-recorder';
+import { AudioRecorder, RecordingSession } from '@/lib/audio/recording-session';
+import { createContextSnapshot } from '@/lib/context/context-snapshot';
+import { voxaApi } from '@/lib/api/voxa-api';
+import { uploadAudioFileToSignedUrl } from '@/lib/storage/audio-file-upload';
+import { localUploadQueue, sqliteMemoryStore } from '@/lib/storage/singletons';
 
-export interface RunMockCaptureInput {
+export interface RunCaptureInput {
   source: CaptureSource;
   buttonGesture?: ButtonGesture;
   deviceId?: string;
@@ -27,17 +27,11 @@ export function createPreferredAudioRecorder(): AudioRecorder {
   return new ExpoAudioRecorder();
 }
 
-export async function runMockCapture(input: RunMockCaptureInput) {
-  const audioRecorder = new MockAudioRecorder();
-  const activeCapture = await startLocalCapture(input, audioRecorder);
-  return completeLocalCapture(activeCapture, input);
-}
-
-export async function startRealAudioCapture(input: RunMockCaptureInput) {
+export async function startRealAudioCapture(input: RunCaptureInput) {
   return startLocalCapture(input, createPreferredAudioRecorder());
 }
 
-export async function completeLocalCapture(activeCapture: ActiveCapture, input: RunMockCaptureInput) {
+export async function completeLocalCapture(activeCapture: ActiveCapture, input: RunCaptureInput) {
   const completedRecordingSession = await activeCapture.audioRecorder.stop(activeCapture.recordingSession.id);
   await sqliteMemoryStore.saveDraft({
     id: completedRecordingSession.id,
@@ -91,7 +85,7 @@ export async function completeLocalCapture(activeCapture: ActiveCapture, input: 
   }
 }
 
-async function startLocalCapture(input: RunMockCaptureInput, audioRecorder: AudioRecorder): Promise<ActiveCapture> {
+async function startLocalCapture(input: RunCaptureInput, audioRecorder: AudioRecorder): Promise<ActiveCapture> {
   const contextSnapshot = createContextSnapshot(input.source);
   const captureSessionDto: CreateCaptureSessionDto = {
     source: input.source,

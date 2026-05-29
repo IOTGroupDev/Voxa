@@ -2,11 +2,11 @@ import { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { CaptureSource } from '@voxa/shared';
-import { DataStateScreen } from '../../app/DataStateScreen';
-import { queryKeys } from '../../lib/api/hooks';
-import { ActiveCapture, completeLocalCapture, runMockCapture, startRealAudioCapture } from './capture-flow';
-import { ActionButton, Badge, PanelCard } from '../../app/ui';
-import { palette, shadow, spacing } from '../../app/theme';
+import { DataStateScreen } from '@/app/DataStateScreen';
+import { queryKeys } from '@/lib/api/hooks';
+import { ActiveCapture, completeLocalCapture, startRealAudioCapture } from './capture-flow';
+import { ActionButton, Badge, PanelCard } from '@/app/ui';
+import { palette, shadow, spacing } from '@/app/theme';
 
 type CaptureStartMode = 'phone' | 'airpods_shortcut' | 'dongle';
 
@@ -41,17 +41,6 @@ export function CaptureScreen() {
   const activeCaptureRef = useRef<ActiveCapture | null>(null);
 
   const selectedSource = getCaptureSource(selectedMode);
-
-  async function captureManualThought() {
-    setIsLoading(true);
-    try {
-      const result = await runMockCapture({ source: selectedSource });
-      setStatus(result.synced ? 'Captured and synced' : 'Captured locally; sync will retry');
-      await refreshMemoryLists(queryClient);
-    } finally {
-      setIsLoading(false);
-    }
-  }
 
   async function startRecording() {
     if (selectedMode === 'dongle') {
@@ -126,16 +115,12 @@ export function CaptureScreen() {
       </PanelCard>
 
       <ActionButton
-        title={selectedMode === 'airpods_shortcut' ? 'Start shortcut capture' : 'Start capture'}
-        onPress={startRecording}
-        disabled={isRecording || isLoading}
-        variant="primary"
+          title={isRecording ? 'Stop recording' : 'Start capture'}
+          onPress={isRecording ? stopRecording : startRecording}
+          disabled={isLoading}
+          variant={isRecording ? 'secondary' : 'primary'}
       />
 
-      <View style={styles.actionsRow}>
-        <ActionButton title="Stop recording" onPress={stopRecording} disabled={!isRecording} variant="secondary" />
-        <ActionButton title="Mock capture" onPress={captureManualThought} variant="ghost" />
-      </View>
     </DataStateScreen>
   );
 }
@@ -225,11 +210,5 @@ const styles = StyleSheet.create({
     color: palette.text,
     fontSize: 15,
     flex: 1,
-  },
-  actionsRow: {
-    marginTop: spacing.md,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'space-between',
   },
 });
