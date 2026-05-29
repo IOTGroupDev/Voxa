@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { DataStateScreen } from '../../app/DataStateScreen';
 import { useSearchQuery } from '../../lib/api/hooks';
+import { EmptyState, ListCard, PanelCard, SearchInput } from '../../app/ui';
+import { spacing } from '../../app/theme';
 
 export function SearchScreen() {
   const [query, setQuery] = useState('');
@@ -9,20 +11,32 @@ export function SearchScreen() {
   const results = isSearchResult(search.data) ? search.data.results : [];
 
   return (
-    <DataStateScreen title="Search Memory" isLoading={search.isLoading} error={search.error}>
-      <TextInput
-        value={query}
-        onChangeText={setQuery}
-        placeholder="Find a memory or recurring thought"
-        style={styles.input}
-        autoCorrect
-      />
-      <View style={styles.results}>
-        {results.map((result, index) => (
-          <Text key={`${result.type}-${index}`}>{describeResult(result)}</Text>
-        ))}
-        {query.trim() && !results.length && !search.isLoading ? <Text>No matching memories yet</Text> : null}
-      </View>
+    <DataStateScreen title="Search" isLoading={search.isLoading} error={search.error}>
+      <PanelCard title="Search your memory">
+        <SearchInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Find a memory or recurring thought"
+        />
+      </PanelCard>
+      {query.trim() ? (
+        <View style={styles.results}>
+          {results.map((result, index) => (
+            <ListCard
+              key={`${result.type}-${index}`}
+              title={result.item.title ?? result.item.summary ?? result.item.body ?? result.item.id}
+              subtitle={result.type}
+            />
+          ))}
+          {query.trim() && !results.length && !search.isLoading ? (
+            <EmptyState title="No matching memories" description="Try another keyword or browse the timeline." />
+          ) : null}
+        </View>
+      ) : (
+        <PanelCard title="Search tips" subtitle="Use broad keywords like meeting, idea, task or voice note for faster results.">
+          <Text style={styles.item}>Try keywords like "meeting", "idea", "task" or "voice note" to broaden results.</Text>
+        </PanelCard>
+      )}
     </DataStateScreen>
   );
 }
@@ -41,21 +55,13 @@ function isSearchResult(value: unknown): value is { results: SearchResult[] } {
   return Boolean(value && typeof value === 'object' && 'results' in value);
 }
 
-function describeResult(result: SearchResult): string {
-  return result.item.title ?? result.item.summary ?? result.item.body ?? result.item.id;
-}
-
 const styles = StyleSheet.create({
-  input: {
-    minHeight: 44,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#9ca3af',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    color: '#111827',
-    backgroundColor: '#ffffff',
-  },
   results: {
-    gap: 10,
+    gap: spacing.sm,
+  },
+  item: {
+    color: '#6b7280',
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

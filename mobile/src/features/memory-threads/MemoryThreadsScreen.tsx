@@ -1,6 +1,8 @@
-import { Text } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { DataStateScreen } from '../../app/DataStateScreen';
 import { useMemoryThreadsQuery } from '../../lib/api/hooks';
+import { EmptyState, ListCard } from '../../app/ui';
+import { spacing } from '../../app/theme';
 
 export function MemoryThreadsScreen() {
   const threads = useMemoryThreadsQuery();
@@ -8,11 +10,25 @@ export function MemoryThreadsScreen() {
 
   return (
     <DataStateScreen title="Memory Threads" isLoading={threads.isLoading} error={threads.error}>
-      {items.map((item: { id: string; title: string; description?: string }) => (
-        <Text key={item.id}>{item.title}{item.description ? ` · ${item.description}` : ''}</Text>
-      ))}
-      {!items.length && !threads.isLoading ? <Text>No memory threads yet</Text> : null}
+      <View style={styles.list}>
+        {items.map((item: { id: string; title: string; description?: string }) => (
+          <ListCard
+            key={item.id}
+            title={item.title}
+            detail={item.description ?? 'No description available'}
+          />
+        ))}
+        {!items.length && !threads.isLoading ? (
+          <EmptyState title="No memory threads" description="Threads appear as Voxa learns from your captures." />
+        ) : null}
+      </View>
     </DataStateScreen>
   );
 }
+
+const styles = StyleSheet.create({
+  list: {
+    gap: spacing.sm,
+  },
+});
 

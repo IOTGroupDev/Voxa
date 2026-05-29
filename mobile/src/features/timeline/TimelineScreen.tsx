@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   AiJob,
   AiJobStatus,
@@ -11,6 +11,8 @@ import {
 } from '@voxa/shared';
 import { DataStateScreen } from '../../app/DataStateScreen';
 import { useReprocessEventMutation, useTimelineQuery } from '../../lib/api/hooks';
+import { ActionButton, Badge, EmptyState } from '../../app/ui';
+import { palette, shadow, spacing } from '../../app/theme';
 
 type TimelineStatusTone = 'neutral' | 'working' | 'ready' | 'failed';
 
@@ -28,48 +30,48 @@ export function TimelineScreen() {
 
   return (
     <DataStateScreen title="Timeline" isLoading={timeline.isLoading} error={timeline.error}>
-      {items.map((item) => {
-        const status = describeTimelineStatus(item);
-        const isExpanded = expandedId === item.id;
-        return (
-          <Pressable
-            key={item.id}
-            accessibilityRole="button"
-            onPress={() => setExpandedId(isExpanded ? null : item.id)}
-            style={styles.item}
-          >
-            <View style={styles.itemTopRow}>
-              <View style={styles.itemMain}>
-                <View style={styles.itemHeader}>
-                  <Text style={styles.title}>
+      <View style={styles.list}>
+        {items.map((item) => {
+          const status = describeTimelineStatus(item);
+          const isExpanded = expandedId === item.id;
+
+          return (
+            <View key={item.id} style={[styles.item, shadow.card]}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setExpandedId(isExpanded ? null : item.id)}
+                style={styles.itemHeader}
+              >
+                <View style={styles.itemMeta}>
+                  <Text style={styles.title} numberOfLines={2}>
                     {item.title ?? item.summary ?? formatOccurredAt(item.occurredAt) ?? item.id}
                   </Text>
-                  <View style={[styles.statusPill, statusToneStyle(status.tone)]}>
-                    <Text style={[styles.statusText, statusTextToneStyle(status.tone)]}>{status.label}</Text>
-                  </View>
+                  <Text style={styles.subtitle}>{describeSource(item)}</Text>
                 </View>
-                <Text style={styles.detail}>{status.detail}</Text>
-                <Text style={styles.meta}>{describeSource(item)}</Text>
-              </View>
-              <Text style={styles.expandIcon}>{isExpanded ? 'Hide' : 'Open'}</Text>
+                <View style={styles.statusWrap}>
+                  <Badge label={status.label} tone={status.tone === 'ready' ? 'success' : status.tone === 'failed' ? 'danger' : 'accent'} />
+                  <Text style={styles.expandText}>{isExpanded ? 'Hide' : 'Details'}</Text>
+                </View>
+              </Pressable>
+              <Text style={styles.detail}>{status.detail}</Text>
+              {isExpanded ? <TimelineDetails item={item} /> : null}
+              {status.tone === 'failed' ? (
+                <View style={styles.itemFooter}>
+                  <ActionButton
+                    title="Retry processing"
+                    onPress={() => reprocessEvent.mutate(item.id)}
+                    disabled={reprocessEvent.isPending}
+                    variant="secondary"
+                  />
+                </View>
+              ) : null}
             </View>
-            {isExpanded ? <TimelineDetails item={item} /> : null}
-            {status.tone === 'failed' ? (
-              <Button
-                title="Retry processing"
-                onPress={() => reprocessEvent.mutate(item.id)}
-                disabled={reprocessEvent.isPending}
-              />
-            ) : null}
-          </Pressable>
-        );
-      })}
-      {!items.length && !timeline.isLoading ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>No memories yet</Text>
-          <Text style={styles.emptyText}>Capture from the phone button, AirPods shortcut, or Voxa dongle.</Text>
-        </View>
-      ) : null}
+          );
+        })}
+        {!items.length && !timeline.isLoading ? (
+          <EmptyState title="No memories yet" description="Capture thoughts and they will appear here as the timeline builds." />
+        ) : null}
+      </View>
     </DataStateScreen>
   );
 }
@@ -332,24 +334,6 @@ function formatOccurredAt(value?: string | null): string | undefined {
   return new Date(value).toLocaleString();
 }
 
-function statusToneStyle(tone: TimelineStatusTone) {
-  switch (tone) {
-    case 'ready':
-      return styles.statusReady;
-    case 'working':
-      return styles.statusWorking;
-    case 'failed':
-      return styles.statusFailed;
-    case 'neutral':
-    default:
-      return styles.statusNeutral;
-  }
-}
-
-function statusTextToneStyle(tone: TimelineStatusTone) {
-  return tone === 'failed' ? styles.statusTextFailed : styles.statusTextDefault;
-}
-
 function stageDotStyle(status?: AiJobStatus) {
   switch (status) {
     case AiJobStatus.COMPLETED:
@@ -367,155 +351,116 @@ function stageDotStyle(status?: AiJobStatus) {
 }
 
 const styles = StyleSheet.create({
+  list: {
+    gap: spacing.sm,
+  },
   item: {
-    gap: 8,
+    borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 12,
-    backgroundColor: '#ffffff',
-  },
-  itemTopRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  itemMain: {
-    flex: 1,
-    gap: 8,
+    borderColor: palette.border,
+    backgroundColor: palette.surface,
+    padding: spacing.md,
   },
   itemHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: 10,
+    gap: spacing.sm,
+    alignItems: 'flex-start',
   },
-  expandIcon: {
-    minWidth: 36,
-    color: '#2563eb',
-    fontSize: 12,
-    fontWeight: '700',
-    textAlign: 'right',
+  itemMeta: {
+    flex: 1,
+    gap: 6,
   },
   title: {
-    flex: 1,
-    color: '#111827',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  statusPill: {
-    minHeight: 28,
-    justifyContent: 'center',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-  },
-  statusNeutral: {
-    backgroundColor: '#f3f4f6',
-  },
-  statusWorking: {
-    backgroundColor: '#e0f2fe',
-  },
-  statusReady: {
-    backgroundColor: '#dcfce7',
-  },
-  statusFailed: {
-    backgroundColor: '#fee2e2',
-  },
-  statusText: {
-    fontSize: 12,
+    color: palette.text,
+    fontSize: 16,
     fontWeight: '700',
+    lineHeight: 22,
   },
-  statusTextDefault: {
-    color: '#111827',
-  },
-  statusTextFailed: {
-    color: '#991b1b',
-  },
-  detail: {
-    color: '#374151',
+  subtitle: {
+    color: palette.muted,
     fontSize: 13,
   },
-  meta: {
-    color: '#6b7280',
+  statusWrap: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  expandText: {
+    color: palette.accentStrong,
+    fontWeight: '700',
     fontSize: 12,
   },
+  detail: {
+    color: palette.muted,
+    fontSize: 13,
+    marginTop: spacing.sm,
+  },
   details: {
-    gap: 10,
+    gap: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#e5e7eb',
-    paddingTop: 10,
+    borderTopColor: palette.border,
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
   },
   detailBlock: {
-    gap: 2,
+    gap: 4,
   },
   detailLabel: {
-    color: '#6b7280',
+    color: palette.muted,
     fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
   },
   detailValue: {
-    color: '#111827',
+    color: palette.text,
     fontSize: 13,
-    lineHeight: 18,
+    lineHeight: 20,
   },
   stageList: {
-    gap: 8,
+    gap: spacing.sm,
   },
   stageRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
   },
   stageDot: {
     width: 10,
     height: 10,
-    borderRadius: 5,
+    borderRadius: 999,
     marginTop: 4,
   },
   stageDotWaiting: {
-    backgroundColor: '#d1d5db',
+    backgroundColor: palette.border,
   },
   stageDotWorking: {
-    backgroundColor: '#0284c7',
+    backgroundColor: palette.accentStrong,
   },
   stageDotCompleted: {
-    backgroundColor: '#16a34a',
+    backgroundColor: palette.success,
   },
   stageDotFailed: {
-    backgroundColor: '#dc2626',
+    backgroundColor: palette.danger,
   },
   stageBody: {
     flex: 1,
     gap: 2,
   },
+  itemFooter: {
+    marginTop: spacing.md,
+    alignItems: 'flex-end',
+  },
   stageTitle: {
-    color: '#111827',
+    color: palette.text,
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   stageMeta: {
-    color: '#4b5563',
+    color: palette.muted,
     fontSize: 12,
   },
   stageError: {
-    color: '#991b1b',
+    color: palette.danger,
     fontSize: 12,
     lineHeight: 16,
-  },
-  empty: {
-    gap: 6,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 16,
-    backgroundColor: '#ffffff',
-  },
-  emptyTitle: {
-    color: '#111827',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  emptyText: {
-    color: '#4b5563',
-    fontSize: 13,
   },
 });

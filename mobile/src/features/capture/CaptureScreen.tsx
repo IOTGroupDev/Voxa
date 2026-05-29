@@ -1,10 +1,12 @@
 import { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { CaptureSource } from '@voxa/shared';
 import { DataStateScreen } from '../../app/DataStateScreen';
 import { queryKeys } from '../../lib/api/hooks';
 import { ActiveCapture, completeLocalCapture, runMockCapture, startRealAudioCapture } from './capture-flow';
+import { ActionButton, Badge, PanelCard } from '../../app/ui';
+import { palette, shadow, spacing } from '../../app/theme';
 
 type CaptureStartMode = 'phone' | 'airpods_shortcut' | 'dongle';
 
@@ -16,17 +18,17 @@ const captureModes: Array<{
   {
     mode: 'phone',
     title: 'Phone button',
-    subtitle: 'Large in-app button for leaving a note now',
+    subtitle: 'Tap to capture sound thoughts instantly.',
   },
   {
     mode: 'airpods_shortcut',
-    title: 'AirPods + Siri Shortcut',
-    subtitle: 'Say: Hey Siri, leave a note in Voxa',
+    title: 'AirPods + Siri',
+    subtitle: 'Use voice shortcut to create notes hands-free.',
   },
   {
     mode: 'dongle',
     title: 'Voxa dongle',
-    subtitle: 'Physical branded button and Bluetooth mic path',
+    subtitle: 'Hardware button and Bluetooth mic path.',
   },
 ];
 
@@ -61,7 +63,7 @@ export function CaptureScreen() {
     try {
       activeCaptureRef.current = await startRealAudioCapture({ source: selectedSource });
       setIsRecording(true);
-      setStatus(selectedMode === 'airpods_shortcut' ? 'Recording from shortcut path' : 'Recording');
+      setStatus(selectedMode === 'airpods_shortcut' ? 'Recording via Siri shortcut' : 'Recording');
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Could not start recording');
     } finally {
@@ -92,35 +94,48 @@ export function CaptureScreen() {
 
   return (
     <DataStateScreen title="Capture" isLoading={isLoading} error={null}>
-      <View style={styles.modeList}>
-        {captureModes.map((item) => {
-          const isSelected = selectedMode === item.mode;
-          return (
-            <Pressable
-              key={item.mode}
-              accessibilityRole="button"
-              onPress={() => setSelectedMode(item.mode)}
-              style={[styles.modeItem, isSelected ? styles.modeItemSelected : null]}
-            >
-              <Text style={[styles.modeTitle, isSelected ? styles.modeTitleSelected : null]}>{item.title}</Text>
-              <Text style={[styles.modeSubtitle, isSelected ? styles.modeSubtitleSelected : null]}>{item.subtitle}</Text>
-            </Pressable>
-          );
-        })}
+      <View style={[styles.heroPanel, shadow.soft]}>
+        <Text style={styles.heroTitle}>Capture the moment before it slips away</Text>
+        <Text style={styles.heroSubtitle}>Choose a source and keep the flow of ideas moving with a single tap.</Text>
       </View>
-      <Text>{status}</Text>
-      <Pressable
-        accessibilityRole="button"
-        disabled={isRecording || isLoading}
+
+      <PanelCard title="Capture mode">
+        <View style={styles.modeList}>
+          {captureModes.map((item) => {
+            const isSelected = selectedMode === item.mode;
+            return (
+              <Pressable
+                key={item.mode}
+                accessibilityRole="button"
+                onPress={() => setSelectedMode(item.mode)}
+                style={[styles.modeItem, isSelected ? styles.modeItemSelected : null]}
+              >
+                <Text style={[styles.modeTitle, isSelected ? styles.modeTitleSelected : null]}>{item.title}</Text>
+                <Text style={[styles.modeSubtitle, isSelected ? styles.modeSubtitleSelected : null]}>{item.subtitle}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </PanelCard>
+
+      <PanelCard title="Status">
+        <View style={styles.statusRow}>
+          <Badge label={isRecording ? 'Recording' : 'Ready'} tone={isRecording ? 'danger' : 'success'} />
+          <Text style={styles.statusText}>{status}</Text>
+        </View>
+      </PanelCard>
+
+      <ActionButton
+        title={selectedMode === 'airpods_shortcut' ? 'Start shortcut capture' : 'Start capture'}
         onPress={startRecording}
-        style={[styles.primaryCaptureButton, isRecording ? styles.primaryCaptureButtonActive : null]}
-      >
-        <Text style={styles.primaryCaptureText}>
-          {selectedMode === 'airpods_shortcut' ? 'Leave Note via Shortcut' : 'Leave Note'}
-        </Text>
-      </Pressable>
-      <Button title="Stop recording" onPress={stopRecording} disabled={!isRecording} />
-      <Button title="Mock voice capture" onPress={captureManualThought} />
+        disabled={isRecording || isLoading}
+        variant="primary"
+      />
+
+      <View style={styles.actionsRow}>
+        <ActionButton title="Stop recording" onPress={stopRecording} disabled={!isRecording} variant="secondary" />
+        <ActionButton title="Mock capture" onPress={captureManualThought} variant="ghost" />
+      </View>
     </DataStateScreen>
   );
 }
@@ -146,50 +161,75 @@ function getCaptureSource(mode: CaptureStartMode): CaptureSource {
 }
 
 const styles = StyleSheet.create({
+  heroPanel: {
+    borderRadius: 28,
+    backgroundColor: palette.surface,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  heroTitle: {
+    color: palette.text,
+    fontSize: 22,
+    fontWeight: '800',
+    lineHeight: 30,
+    marginBottom: spacing.sm,
+  },
+  heroSubtitle: {
+    color: palette.muted,
+    fontSize: 15,
+    lineHeight: 22,
+  },
   modeList: {
-    gap: 8,
+    gap: spacing.sm,
   },
   modeItem: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 12,
-    backgroundColor: '#ffffff',
+    borderColor: palette.border,
+    borderRadius: 22,
+    padding: spacing.md,
+    backgroundColor: palette.surfaceSoft,
   },
   modeItemSelected: {
-    borderColor: '#111827',
-    backgroundColor: '#f9fafb',
+    borderColor: palette.accentStrong,
+    backgroundColor: palette.surface,
+    shadowColor: palette.accentLight,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 6,
   },
   modeTitle: {
-    color: '#111827',
+    color: palette.text,
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   modeTitleSelected: {
-    color: '#000000',
+    color: palette.accentStrong,
   },
   modeSubtitle: {
     marginTop: 4,
-    color: '#4b5563',
+    color: palette.muted,
     fontSize: 13,
+    lineHeight: 18,
   },
   modeSubtitleSelected: {
-    color: '#374151',
+    color: palette.muted,
   },
-  primaryCaptureButton: {
-    minHeight: 96,
+  statusRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-    backgroundColor: '#111827',
-    paddingHorizontal: 16,
+    gap: spacing.sm,
+    flexWrap: 'wrap',
   },
-  primaryCaptureButtonActive: {
-    backgroundColor: '#7f1d1d',
+  statusText: {
+    color: palette.text,
+    fontSize: 15,
+    flex: 1,
   },
-  primaryCaptureText: {
-    color: '#ffffff',
-    fontSize: 20,
-    fontWeight: '700',
+  actionsRow: {
+    marginTop: spacing.md,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
   },
 });

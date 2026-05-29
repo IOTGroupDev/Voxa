@@ -1,10 +1,16 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { jwtVerify } from 'jose';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 
 export interface AuthenticatedUser {
   supabaseUserId: string;
   email?: string;
 }
+
+const SUPABASE_URL = process.env.SUPABASE_URL; // https://ntzdzhzltyzmavfmxjvy.supabase.co
+
+const JWKS = createRemoteJWKSet(
+    new URL(`${SUPABASE_URL}/auth/v1/.well-known/jwks.json`)
+);
 
 @Injectable()
 export class AuthService {
@@ -13,14 +19,11 @@ export class AuthService {
       throw new UnauthorizedException('Missing bearer token.');
     }
 
-    const jwtSecret = process.env.SUPABASE_JWT_SECRET;
-    if (!jwtSecret) {
-      throw new UnauthorizedException('Supabase JWT verification is not configured.');
-    }
-
     try {
-      const secret = new TextEncoder().encode(jwtSecret);
-      const { payload } = await jwtVerify(token, secret);
+      const { payload } = await jwtVerify(token, JWKS, {
+        issuer: `${SUPABASE_URL}/auth/v1`,
+        audience: 'authenticated',
+      });
 
       if (!payload.sub) {
         throw new UnauthorizedException('JWT subject is missing.');

@@ -1,6 +1,8 @@
-import { Text } from 'react-native';
+import { Text, View, StyleSheet } from 'react-native';
 import { DataStateScreen } from '../../app/DataStateScreen';
 import { useInsightsQuery } from '../../lib/api/hooks';
+import { EmptyState, ListCard } from '../../app/ui';
+import { spacing } from '../../app/theme';
 
 export function InsightsScreen() {
   const insights = useInsightsQuery();
@@ -8,11 +10,21 @@ export function InsightsScreen() {
 
   return (
     <DataStateScreen title="Insights" isLoading={insights.isLoading} error={insights.error}>
-      {items.map((item: { id: string; title: string; body: string }) => (
-        <Text key={item.id}>{item.title} · {item.body}</Text>
-      ))}
-      {!items.length && !insights.isLoading ? <Text>No insights yet</Text> : null}
+      <View style={styles.list}>
+        {items.map((item: { id: string; title: string; body: string }) => (
+          <ListCard key={item.id} title={item.title} detail={item.body} />
+        ))}
+        {!items.length && !insights.isLoading ? (
+          <EmptyState title="No insights yet" description="Capture more moments and insights will appear here." />
+        ) : null}
+      </View>
     </DataStateScreen>
   );
 }
+
+const styles = StyleSheet.create({
+  list: {
+    gap: spacing.sm,
+  },
+});
 

@@ -1,4 +1,4 @@
-import { File, UploadType } from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 export interface SignedUploadTarget {
   signedUrl: string;
@@ -12,31 +12,39 @@ export interface AudioFileUploadResult {
 }
 
 export async function uploadAudioFileToSignedUrl(
-  localUri: string,
-  target: SignedUploadTarget,
-  mimeType = 'audio/mp4',
+    localUri: string,
+    target: SignedUploadTarget,
+    mimeType = 'audio/mp4',
 ): Promise<AudioFileUploadResult> {
+  console.log('[upload] start', localUri.slice(-40));
+
   if (!target.signedUrl || target.signedUrl === 'supabase-storage-not-configured') {
     return { uploaded: false, skipped: true };
   }
 
-  const file = new File(localUri);
-  const result = await file.upload(target.signedUrl, {
-    httpMethod: 'PUT',
-    uploadType: UploadType.BINARY_CONTENT,
-    mimeType,
-    headers: {
-      'content-type': mimeType,
-    },
-  });
+  try {
+    const base64 = await FileSystem.readAsStringAsync(localUri, {
+      encoding: 'base64' as any,
+    });
+    const binary = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
 
-  if (result.status < 200 || result.status >= 300) {
-    throw new Error(`Audio upload failed with status ${result.status}.`);
+    const response = await fetch(target.signedUrl, {
+      method: 'PUT',
+      headers: { 'content-type': mimeType },
+      body: binary,
+    });
+
+    console.log('[upload] status:', response.status);
+
+    if (!response.ok) {
+      const body = await response.text();
+      console.error('[upload] error body:', body);
+      throw new Error(`Audio upload failed with status ${response.status}`);
+    }
+
+    return { uploaded: true, skipped: false, status: response.status };
+  } catch (error) {
+    console.error('[upload] error:', error);
+    throw error;
   }
-
-  return {
-    uploaded: true,
-    skipped: false,
-    status: result.status,
-  };
 }

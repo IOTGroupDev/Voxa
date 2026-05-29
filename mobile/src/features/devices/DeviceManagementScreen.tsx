@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { ButtonGesture, DeviceStatus } from '@voxa/shared';
 import { DataStateScreen } from '../../app/DataStateScreen';
 import { voxaApi } from '../../lib/api/voxa-api';
@@ -10,6 +10,8 @@ import {
   mockDongleSyncService,
 } from '../../lib/bluetooth/storage/singletons';
 import { mockDongleStorageService } from '../../lib/bluetooth/storage';
+import { PanelCard, EmptyState, ActionButton } from '../../app/ui';
+import { palette, spacing } from '../../app/theme';
 
 export function DeviceManagementScreen() {
   const [status, setStatus] = useState('Mock dongle disconnected');
@@ -85,6 +87,7 @@ export function DeviceManagementScreen() {
     const lastSync = snapshot.lastSyncAt ? new Date(snapshot.lastSyncAt).toLocaleTimeString() : 'pending';
     const error = snapshot.syncError ? ` · ${snapshot.syncError}` : '';
     const backendError = lastBackendError ? ` · backend error ${lastBackendError}` : '';
+
     setStorageStatus(
       `${snapshot.unsyncedRecordingsCount} unsynced · ${pendingBackend} backend pending · ${attempts} attempts · ${usedKb}KB of ${totalMb}MB · failure ${mockDongleStorageService.getFailureMode()} · last sync ${lastSync}${error}${backendError}`,
     );
@@ -118,26 +121,60 @@ export function DeviceManagementScreen() {
       setMockDeviceStatus(status);
       setStatus(`Mock dongle status ${status} saved locally only`);
     }
+
     await refreshStorageStatus();
   }
 
   return (
     <DataStateScreen title="Device" isLoading={isLoading} error={null}>
-      <Text>{status}</Text>
-      <Text>Device status: {mockDeviceStatus}</Text>
-      <Text>{storageStatus}</Text>
-      <Button title="Pair mock dongle" onPress={pairMockDongle} />
-      <Button title="Sync stored recordings" onPress={syncStoredRecordings} />
-      <Button title="Retry backend sync" onPress={retryBackendSync} />
-      <Button title="Mark mock active" onPress={() => void markMockDeviceStatus(DeviceStatus.ACTIVE)} />
-      <Button title="Mark mock lost" onPress={() => void markMockDeviceStatus(DeviceStatus.LOST)} />
-      <Button title="Add stored recording" onPress={addStoredRecording} />
-      <Button title="Mock storage ok" onPress={() => void setChunkFailureMode('none')} />
-      <Button title="Mock missing chunk" onPress={() => void setChunkFailureMode('missing_chunk')} />
-      <Button title="Mock corrupt chunk" onPress={() => void setChunkFailureMode('corrupt_chunk')} />
-      <Button title="Reset mock storage" onPress={resetMockStorage} />
-      <Button title="Mock quick capture" onPress={emitQuickCapture} />
-      <Button title="Mock important capture" onPress={emitImportantCapture} />
+      <PanelCard title="Voxa dongle" subtitle={`Status: ${mockDeviceStatus}`}>
+        <Text style={styles.info}>{status}</Text>
+        <Text style={styles.info}>{storageStatus}</Text>
+      </PanelCard>
+
+      <PanelCard title="Quick controls">
+        <View style={styles.buttonGrid}>
+          <ActionButton title="Pair device" onPress={pairMockDongle} variant="primary" />
+          <ActionButton title="Sync recordings" onPress={syncStoredRecordings} variant="secondary" />
+          <ActionButton title="Retry backend" onPress={retryBackendSync} variant="ghost" />
+          <ActionButton title="Quick capture" onPress={emitQuickCapture} variant="secondary" />
+          <ActionButton title="Important capture" onPress={emitImportantCapture} variant="primary" />
+        </View>
+      </PanelCard>
+
+      <PanelCard title="Storage and failure modes">
+        <View style={styles.buttonGrid}>
+          <ActionButton title="Storage OK" onPress={() => void setChunkFailureMode('none')} variant="secondary" />
+          <ActionButton title="Missing chunk" onPress={() => void setChunkFailureMode('missing_chunk')} variant="ghost" />
+          <ActionButton title="Corrupt chunk" onPress={() => void setChunkFailureMode('corrupt_chunk')} variant="ghost" />
+          <ActionButton title="Add recording" onPress={addStoredRecording} variant="secondary" />
+          <ActionButton title="Reset storage" onPress={resetMockStorage} variant="ghost" />
+          <ActionButton title="Mark active" onPress={() => void markMockDeviceStatus(DeviceStatus.ACTIVE)} variant="secondary" />
+          <ActionButton title="Mark lost" onPress={() => void markMockDeviceStatus(DeviceStatus.LOST)} variant="ghost" />
+        </View>
+      </PanelCard>
+
+      {!status && !storageStatus ? (
+        <EmptyState title="No device data" description="Connect a device to see storage and sync information." />
+      ) : null}
     </DataStateScreen>
   );
 }
+
+const styles = StyleSheet.create({
+  info: {
+    color: palette.text,
+    fontSize: 13,
+    lineHeight: 20,
+    marginBottom: spacing.xs,
+  },
+  buttonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  buttonCell: {
+    flex: 1,
+    minWidth: 140,
+  },
+});

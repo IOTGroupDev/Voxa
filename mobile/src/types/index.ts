@@ -2,6 +2,7 @@ export type AppRouteName =
   | 'Auth'
   | 'Home'
   | 'Capture'
+  | 'More'
   | 'Timeline'
   | 'MemoryEventDetails'
   | 'MemoryThreads'

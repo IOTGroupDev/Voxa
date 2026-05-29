@@ -10,7 +10,9 @@
       "android"
     ],
     "plugins": [
-      "expo-audio"
+      "expo-audio",
+      "expo-sqlite",
+      "expo-asset"
     ]
   }
 }
