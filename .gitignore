@@ -8,9 +8,27 @@ dist/
 .env.*
 !.env.example
 
+.idea/
+.vscode/
+
 .npm-cache/
 .tmp/
 
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+stt-service/.venv
+stt-service/.venv/**
+stt-service/__pycache__
+stt-service/__pycache__/**
+stt-service/models
+stt-service/models/**
+
+shared/src/**/*.d.ts
+shared/src/**/*.js.map
+
+.DS_Store
 *.log
 *.tsbuildinfo
-
