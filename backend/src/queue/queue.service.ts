@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { QUEUE_NAMES } from '@voxa/shared';
 import { Queue } from 'bullmq';
 
 @Injectable()
 export class QueueService {
+  private readonly logger = new Logger(QueueService.name);
+
   constructor(
     @InjectQueue(QUEUE_NAMES.RECORDING_UPLOADED)
     private readonly recordingUploadedQueue: Queue,
@@ -41,6 +43,9 @@ export class QueueService {
       removeOnComplete: true,
       removeOnFail: false,
     });
+    this.logger.log(
+      `Enqueued job queue=${QUEUE_NAMES.RECORDING_UPLOADED} jobName=recording_uploaded jobId=${job.id} aiJobId=${input.aiJobId} recordingId=${input.recordingId} memoryEventId=${input.memoryEventId}`,
+    );
 
     return { queue: QUEUE_NAMES.RECORDING_UPLOADED, jobId: job.id, ...input };
   }
@@ -107,6 +112,9 @@ export class QueueService {
       removeOnComplete: true,
       removeOnFail: false,
     });
+    this.logger.log(
+      `Enqueued job queue=${queueName} jobName=${jobName} jobId=${job.id} aiJobId=${input.aiJobId} recordingId=${input.recordingId} memoryEventId=${input.memoryEventId}`,
+    );
 
     return { queue: queueName, jobId: job.id, ...input };
   }

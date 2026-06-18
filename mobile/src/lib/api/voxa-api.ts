@@ -120,6 +120,12 @@ export const voxaApi = {
     });
   },
 
+  deleteMemoryEvent(id: string) {
+    return apiClient.request(`/memory-events/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
   listNotes() {
     return apiClient.request('/notes');
   },

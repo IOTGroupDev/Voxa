@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 
 export interface AuthenticatedUser {
@@ -14,8 +14,11 @@ const JWKS = createRemoteJWKSet(
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   async verifySupabaseJwt(token?: string): Promise<AuthenticatedUser> {
     if (!token) {
+      this.logger.warn('Rejected request without bearer token');
       throw new UnauthorizedException('Missing bearer token.');
     }
 
@@ -26,6 +29,7 @@ export class AuthService {
       });
 
       if (!payload.sub) {
+        this.logger.warn('Rejected JWT without subject');
         throw new UnauthorizedException('JWT subject is missing.');
       }
 
@@ -38,6 +42,7 @@ export class AuthService {
         throw error;
       }
 
+      this.logger.warn(`Rejected invalid bearer token: ${error instanceof Error ? error.message : 'unknown error'}`);
       throw new UnauthorizedException('Invalid bearer token.');
     }
   }

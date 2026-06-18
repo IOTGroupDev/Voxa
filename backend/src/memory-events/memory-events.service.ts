@@ -1,11 +1,17 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { CreateMemoryEventDto, UpdateMemoryEventDto } from '@voxa/shared';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class MemoryEventsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(MemoryEventsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storageService: StorageService,
+  ) {}
 
   async create(supabaseUserId: string, email: string | undefined, dto: CreateMemoryEventDto) {
     const user = await this.upsertUser(supabaseUserId, email);
@@ -67,18 +73,61 @@ export class MemoryEventsService {
 
   async update(supabaseUserId: string, id: string, dto: UpdateMemoryEventDto) {
     const memoryEvent = await this.findOwnedMemoryEvent(supabaseUserId, id);
+    const text = dto.text?.trim();
+    const title = text ? createTitle(text) : dto.title;
+    const summary = text ?? dto.summary;
+    const { text: _text, ...eventDto } = dto;
 
-    return this.prisma.memoryEvent.update({
-      where: { id: memoryEvent.id },
-      data: dto,
+    return this.prisma.$transaction(async (tx) => {
+      const updatedMemoryEvent = await tx.memoryEvent.update({
+        where: { id: memoryEvent.id },
+        data: {
+          ...eventDto,
+          ...(title !== undefined ? { title } : {}),
+          ...(summary !== undefined ? { summary } : {}),
+        },
+      });
+
+      if (memoryEvent.noteId && (title !== undefined || summary !== undefined)) {
+        await tx.note.update({
+          where: { id: memoryEvent.noteId },
+          data: {
+            ...(title !== undefined ? { title } : {}),
+            ...(summary !== undefined ? { summary, body: summary } : {}),
+          },
+        });
+      }
+
+      return updatedMemoryEvent;
     });
   }
 
   async remove(supabaseUserId: string, id: string) {
     const memoryEvent = await this.findOwnedMemoryEvent(supabaseUserId, id);
+    const recordingId = memoryEvent.recordingId;
+    const storagePath = memoryEvent.recording?.storagePath;
 
-    await this.prisma.memoryEvent.delete({ where: { id: memoryEvent.id } });
-    return { id, deleted: true };
+    this.logger.warn(`Deleting memory event memoryEventId=${memoryEvent.id} recordingId=${recordingId ?? 'none'}`);
+
+    if (storagePath) {
+      try {
+        await this.storageService.deleteAudioObject(storagePath);
+      } catch (error) {
+        this.logger.warn(
+          `Audio object cleanup skipped memoryEventId=${memoryEvent.id} recordingId=${recordingId ?? 'none'} error=${formatError(error)}`,
+        );
+      }
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.memoryEvent.delete({ where: { id: memoryEvent.id } });
+
+      if (recordingId) {
+        await tx.recording.delete({ where: { id: recordingId } });
+      }
+    });
+
+    return { id, recordingId, deleted: true };
   }
 
   private async findOwnedMemoryEvent(supabaseUserId: string, id: string) {
@@ -112,4 +161,14 @@ export class MemoryEventsService {
   private toJson(value: unknown): Prisma.InputJsonValue | undefined {
     return value === undefined ? undefined : (value as Prisma.InputJsonValue);
   }
+}
+
+function formatError(error: unknown) {
+  return error instanceof Error ? error.message : 'Unknown error';
+}
+
+function createTitle(text: string) {
+  const firstSentence = text.split(/[.!?\n]/)[0]?.trim() ?? '';
+  const title = firstSentence || 'Captured memory';
+  return title.length > 80 ? `${title.slice(0, 77)}...` : title;
 }

@@ -1,16 +1,18 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import {
-  AiJob,
-  AiJobStatus,
-  AiJobType,
   CaptureSource,
   DongleRecordingSyncStatus,
   RecordingStatus,
   TimelineItem,
 } from '@voxa/shared';
 import { DataStateScreen } from '../../app/DataStateScreen';
-import { useReprocessEventMutation, useTimelineQuery } from '../../lib/api/hooks';
+import {
+  useDeleteTimelineItemMutation,
+  useReprocessEventMutation,
+  useTimelineQuery,
+  useUpdateMemoryEventMutation,
+} from '../../lib/api/hooks';
 import { ActionButton, Badge, EmptyState } from '../../app/ui';
 import { palette, shadow, spacing } from '../../app/theme';
 
@@ -25,23 +27,69 @@ interface TimelineStatus {
 export function TimelineScreen() {
   const timeline = useTimelineQuery();
   const reprocessEvent = useReprocessEventMutation();
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const deleteTimelineItem = useDeleteTimelineItemMutation();
+  const updateMemoryEvent = useUpdateMemoryEventMutation();
+  const [menuItem, setMenuItem] = useState<TimelineItem | null>(null);
+  const [editingItem, setEditingItem] = useState<TimelineItem | null>(null);
+  const [editText, setEditText] = useState('');
   const items = Array.isArray(timeline.data) ? (timeline.data as TimelineItem[]) : [];
+
+  function openEdit(item: TimelineItem) {
+    setMenuItem(null);
+    setEditingItem(item);
+    setEditText(item.summary ?? item.note?.summary ?? item.note?.body ?? item.title ?? '');
+  }
+
+  function saveEdit() {
+    if (!editingItem || updateMemoryEvent.isPending) return;
+
+    updateMemoryEvent.mutate(
+      {
+        id: editingItem.id,
+        dto: {
+          text: editText.trim() || undefined,
+        },
+      },
+      {
+        onSuccess() {
+          setEditingItem(null);
+        },
+      },
+    );
+  }
+
+  function confirmDelete(item: TimelineItem) {
+    setMenuItem(null);
+    Alert.alert(
+      'Delete memory',
+      'Remove this timeline item, note, transcript, and linked recording data?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => deleteTimelineItem.mutate(item.id),
+        },
+      ],
+    );
+  }
 
   return (
     <DataStateScreen title="Timeline" isLoading={timeline.isLoading} error={timeline.error}>
       <View style={styles.list}>
         {items.map((item) => {
           const status = describeTimelineStatus(item);
-          const isExpanded = expandedId === item.id;
 
           return (
-            <View key={item.id} style={[styles.item, shadow.card]}>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => setExpandedId(isExpanded ? null : item.id)}
-                style={styles.itemHeader}
-              >
+            <View
+              key={item.id}
+              style={[
+                styles.item,
+                shadow.card,
+                menuItem?.id === item.id ? styles.itemMenuOpen : null,
+              ]}
+            >
+              <View style={styles.itemHeader}>
                 <View style={styles.itemMeta}>
                   <Text style={styles.title} numberOfLines={2}>
                     {item.title ?? item.summary ?? formatOccurredAt(item.occurredAt) ?? item.id}
@@ -50,11 +98,38 @@ export function TimelineScreen() {
                 </View>
                 <View style={styles.statusWrap}>
                   <Badge label={status.label} tone={status.tone === 'ready' ? 'success' : status.tone === 'failed' ? 'danger' : 'accent'} />
-                  <Text style={styles.expandText}>{isExpanded ? 'Hide' : 'Details'}</Text>
+                  <View style={styles.headerActions}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Timeline item actions"
+                      onPress={() => setMenuItem(menuItem?.id === item.id ? null : item)}
+                      style={styles.moreButton}
+                      hitSlop={8}
+                    >
+                      <Text style={styles.moreButtonText}>⋮</Text>
+                    </Pressable>
+                  </View>
                 </View>
-              </Pressable>
-              <Text style={styles.detail}>{status.detail}</Text>
-              {isExpanded ? <TimelineDetails item={item} /> : null}
+              </View>
+              {menuItem?.id === item.id ? (
+                <View style={styles.actionMenu}>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => openEdit(item)}
+                    style={styles.menuAction}
+                  >
+                    <Text style={styles.menuActionText}>Edit</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => confirmDelete(item)}
+                    disabled={deleteTimelineItem.isPending}
+                    style={styles.menuAction}
+                  >
+                    <Text style={[styles.menuActionText, styles.menuActionDanger]}>Delete record</Text>
+                  </Pressable>
+                </View>
+              ) : null}
               {status.tone === 'failed' ? (
                 <View style={styles.itemFooter}>
                   <ActionButton
@@ -72,117 +147,28 @@ export function TimelineScreen() {
           <EmptyState title="No memories yet" description="Capture thoughts and they will appear here as the timeline builds." />
         ) : null}
       </View>
+
+      <Modal transparent visible={Boolean(editingItem)} animationType="fade" onRequestClose={() => setEditingItem(null)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.editDialog}>
+            <Text style={styles.editTitle}>Edit memory</Text>
+            <TextInput
+              value={editText}
+              onChangeText={setEditText}
+              placeholder="Memory text"
+              placeholderTextColor={palette.muted}
+              multiline
+              style={[styles.editInput, styles.editTextArea]}
+            />
+            <View style={styles.editActions}>
+              <ActionButton title="Cancel" onPress={() => setEditingItem(null)} variant="secondary" />
+              <ActionButton title="Save" onPress={saveEdit} disabled={updateMemoryEvent.isPending} />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </DataStateScreen>
   );
-}
-
-function TimelineDetails({ item }: { item: TimelineItem }) {
-  const transcript = item.recording?.transcript;
-  const note = item.note;
-  const tags = note?.noteTags?.map((noteTag) => noteTag.tag?.name).filter(Boolean) ?? [];
-  const actionItems = note?.actionItems ?? [];
-
-  return (
-    <View style={styles.details}>
-      <DetailRow label="Pipeline" value={describePipeline(item)} />
-      <AiJobStages jobs={item.aiJobs ?? []} />
-      <DetailRow label="Transcript" value={transcript?.text ?? 'Waiting for transcription'} />
-      <DetailRow label="Summary" value={note?.summary ?? note?.body ?? 'Waiting for summary'} />
-      <DetailRow label="Thread" value={item.memoryThread?.title ?? 'Not attached yet'} />
-      {tags.length ? <DetailRow label="Tags" value={tags.join(', ')} /> : null}
-      {actionItems.length ? (
-        <View style={styles.detailBlock}>
-          <Text style={styles.detailLabel}>Actions</Text>
-          {actionItems.map((action) => (
-            <Text key={action.id} style={styles.detailValue}>
-              {action.completedAt ? 'Done: ' : 'Open: '}
-              {action.title}
-            </Text>
-          ))}
-        </View>
-      ) : null}
-      <DetailRow
-        label="Audio"
-        value={[item.recording?.mimeType, item.recording?.transcript?.provider, item.recording?.transcript?.language]
-          .filter(Boolean)
-          .join(' · ') || 'No audio metadata yet'}
-      />
-    </View>
-  );
-}
-
-function AiJobStages({ jobs }: { jobs: AiJob[] }) {
-  if (!jobs.length) {
-    return <DetailRow label="AI jobs" value="No AI jobs have been created yet" />;
-  }
-
-  return (
-    <View style={styles.detailBlock}>
-      <Text style={styles.detailLabel}>AI jobs</Text>
-      <View style={styles.stageList}>
-        {pipelineStages.map((stage) => {
-          const job = findLatestJob(jobs, stage.type);
-          return (
-            <View key={stage.type} style={styles.stageRow}>
-              <View style={[styles.stageDot, stageDotStyle(job?.status)]} />
-              <View style={styles.stageBody}>
-                <Text style={styles.stageTitle}>{stage.label}</Text>
-                <Text style={styles.stageMeta}>{describeAiJob(job)}</Text>
-                {job?.lastError ? <Text style={styles.stageError}>{job.lastError}</Text> : null}
-              </View>
-            </View>
-          );
-        })}
-      </View>
-    </View>
-  );
-}
-
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.detailBlock}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue}>{value}</Text>
-    </View>
-  );
-}
-
-const pipelineStages: Array<{ type: AiJobType; label: string }> = [
-  { type: AiJobType.TRANSCRIPTION, label: 'Transcription' },
-  { type: AiJobType.CLASSIFICATION, label: 'Classification' },
-  { type: AiJobType.SUMMARY, label: 'Summary' },
-  { type: AiJobType.ACTION_EXTRACTION, label: 'Actions' },
-  { type: AiJobType.REMINDER_SUGGESTION, label: 'Reminders' },
-  { type: AiJobType.EMBEDDING, label: 'Embedding' },
-  { type: AiJobType.TIMELINE_UPDATE, label: 'Timeline' },
-  { type: AiJobType.INSIGHT, label: 'Insight' },
-];
-
-function findLatestJob(jobs: AiJob[], type: AiJobType): AiJob | undefined {
-  return jobs.filter((job) => job.type === type).sort((a, b) => compareDateDesc(a.createdAt, b.createdAt))[0];
-}
-
-function compareDateDesc(a: string, b: string) {
-  return new Date(b).getTime() - new Date(a).getTime();
-}
-
-function describeAiJob(job?: AiJob): string {
-  if (!job) {
-    return 'Waiting';
-  }
-
-  const attempts = job.attempts ? ` · ${job.attempts} attempt${job.attempts === 1 ? '' : 's'}` : '';
-  const time = job.completedAt ?? job.startedAt ?? job.createdAt;
-
-  return `${job.status}${attempts} · ${formatShortTime(time)}`;
-}
-
-function formatShortTime(value?: string): string {
-  if (!value) {
-    return 'no time';
-  }
-
-  return new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 function describeTimelineStatus(item: TimelineItem): TimelineStatus {
@@ -245,7 +231,7 @@ function describeTimelineStatus(item: TimelineItem): TimelineStatus {
   if (processingStatus === 'thread_attached' || recordingStatus === RecordingStatus.COMPLETED) {
     return {
       label: 'Ready',
-      detail: 'Memory is available in the timeline and linked context.',
+      detail: '',
       tone: 'ready',
     };
   }
@@ -303,6 +289,7 @@ function describeDongleSyncStatus(status: DongleRecordingSyncStatus): TimelineSt
 function describeSource(item: TimelineItem): string {
   const source = item.captureSource;
   const duration = item.recording?.durationMs ? `${Math.round(item.recording.durationMs / 1000)}s` : null;
+  const occurredAt = formatOccurredAtTime(item.occurredAt);
   const labels: Record<string, string> = {
     [CaptureSource.MOBILE_APP]: 'Phone button',
     [CaptureSource.AIRPODS_SHORTCUT]: 'AirPods shortcut',
@@ -310,20 +297,7 @@ function describeSource(item: TimelineItem): string {
   };
   const sourceLabel = source ? labels[source] ?? source : 'Unknown source';
 
-  return [sourceLabel, duration].filter(Boolean).join(' · ');
-}
-
-function describePipeline(item: TimelineItem): string {
-  const steps = [
-    `recording: ${item.recording?.status ?? 'none'}`,
-    `event: ${item.processingStatus ?? 'created'}`,
-  ];
-
-  if (item.recording?.dongleSyncStatus) {
-    steps.push(`dongle: ${item.recording.dongleSyncStatus}`);
-  }
-
-  return steps.join(' · ');
+  return [sourceLabel, occurredAt, duration].filter(Boolean).join(' · ');
 }
 
 function formatOccurredAt(value?: string | null): string | undefined {
@@ -334,20 +308,12 @@ function formatOccurredAt(value?: string | null): string | undefined {
   return new Date(value).toLocaleString();
 }
 
-function stageDotStyle(status?: AiJobStatus) {
-  switch (status) {
-    case AiJobStatus.COMPLETED:
-      return styles.stageDotCompleted;
-    case AiJobStatus.PROCESSING:
-    case AiJobStatus.RETRYING:
-    case AiJobStatus.PENDING:
-      return styles.stageDotWorking;
-    case AiJobStatus.FAILED:
-    case AiJobStatus.CANCELLED:
-      return styles.stageDotFailed;
-    default:
-      return styles.stageDotWaiting;
+function formatOccurredAtTime(value?: string | null): string | undefined {
+  if (!value) {
+    return undefined;
   }
+
+  return new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 const styles = StyleSheet.create({
@@ -355,11 +321,17 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   item: {
+    position: 'relative',
+    zIndex: 1,
     borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: palette.border,
     backgroundColor: palette.surface,
     padding: spacing.md,
+  },
+  itemMenuOpen: {
+    zIndex: 50,
+    elevation: 24,
   },
   itemHeader: {
     flexDirection: 'row',
@@ -385,82 +357,98 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: 6,
   },
-  expandText: {
-    color: palette.accentStrong,
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  detail: {
-    color: palette.muted,
-    fontSize: 13,
-    marginTop: spacing.sm,
-  },
-  details: {
-    gap: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: palette.border,
-    marginTop: spacing.sm,
-    paddingTop: spacing.sm,
-  },
-  detailBlock: {
-    gap: 4,
-  },
-  detailLabel: {
-    color: palette.muted,
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  detailValue: {
-    color: palette.text,
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  stageList: {
-    gap: spacing.sm,
-  },
-  stageRow: {
+  headerActions: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    alignItems: 'center',
+    gap: spacing.xs,
   },
-  stageDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 999,
-    marginTop: 4,
+  moreButton: {
+    width: 30,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.surfaceSoft,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.border,
   },
-  stageDotWaiting: {
-    backgroundColor: palette.border,
-  },
-  stageDotWorking: {
-    backgroundColor: palette.accentStrong,
-  },
-  stageDotCompleted: {
-    backgroundColor: palette.success,
-  },
-  stageDotFailed: {
-    backgroundColor: palette.danger,
-  },
-  stageBody: {
-    flex: 1,
-    gap: 2,
+  moreButtonText: {
+    color: palette.text,
+    fontSize: 22,
+    lineHeight: 22,
+    fontWeight: '900',
   },
   itemFooter: {
     marginTop: spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.sm,
     alignItems: 'flex-end',
+    flexWrap: 'wrap',
   },
-  stageTitle: {
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: spacing.lg,
+    backgroundColor: palette.overlay,
+  },
+  actionMenu: {
+    position: 'absolute',
+    top: 76,
+    right: spacing.md,
+    zIndex: 20,
+    minWidth: 190,
+    borderRadius: 18,
+    backgroundColor: palette.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.border,
+    paddingVertical: spacing.xs,
+  },
+  menuAction: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  menuActionText: {
     color: palette.text,
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
   },
-  stageMeta: {
-    color: palette.muted,
-    fontSize: 12,
-  },
-  stageError: {
+  menuActionDanger: {
     color: palette.danger,
-    fontSize: 12,
-    lineHeight: 16,
+  },
+  editDialog: {
+    borderRadius: 20,
+    backgroundColor: palette.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.border,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  editTitle: {
+    color: palette.text,
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  editInput: {
+    minHeight: 48,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.border,
+    backgroundColor: palette.surfaceSoft,
+    color: palette.text,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: 15,
+  },
+  editTextArea: {
+    minHeight: 110,
+    textAlignVertical: 'top',
+  },
+  editActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
   },
 });

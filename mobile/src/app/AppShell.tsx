@@ -1,35 +1,62 @@
 import { useEffect, useState } from 'react';
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { ActionsScreen } from '../features/actions/ActionsScreen';
 import { AuthScreen } from '../features/auth/AuthScreen';
 import { CaptureScreen } from '../features/capture/CaptureScreen';
+import { useCaptureToggle } from '../features/capture/useCaptureToggle';
 import { DeviceManagementScreen } from '../features/devices/DeviceManagementScreen';
 import { InsightsScreen } from '../features/insights/InsightsScreen';
 import { MemoryThreadsScreen } from '../features/memory-threads/MemoryThreadsScreen';
 import { NoteDetailsScreen } from '../features/notes/NoteDetailsScreen';
+import { RemindersScreen } from '../features/reminders/RemindersScreen';
 import { SearchScreen } from '../features/search/SearchScreen';
+import { SettingsScreen } from '../features/settings/SettingsScreen';
 import { TimelineScreen } from '../features/timeline/TimelineScreen';
 import { AppRouteName } from '../types';
 import { HomeScreen } from './HomeScreen';
-import { MoreScreen } from '../features/more/MoreScreen';
-import { useTranslation, type TranslationKey } from './i18n';
-import { useAuthStore } from '../state/auth.store';
+import { useTranslation } from './i18n';
 import { supabase } from '../lib/supabase/client';
-import { palette, spacing, shadow } from './theme';
+import { useAuthStore } from '../state/auth.store';
+import { getCaptureSource, useCaptureStore } from '../state/capture.store';
+import { getTabForRoute, TABS } from './navigation';
+import { palette, shadow, spacing } from './theme';
 
-// Condensed primary navigation — keep top-level tabs to 5 items.
-const routes: Array<{ name: AppRouteName; labelKey: TranslationKey }> = [
-  { name: 'Home', labelKey: 'home' },
-  { name: 'Capture', labelKey: 'capture' },
-  { name: 'Timeline', labelKey: 'timeline' },
-  { name: 'DeviceManagement', labelKey: 'devices' },
-  { name: 'More', labelKey: 'more' },
-];
+function renderRoute(route: AppRouteName, navigate: (route: AppRouteName) => void) {
+  switch (route) {
+    case 'Capture':
+      return <CaptureScreen />;
+    case 'DeviceManagement':
+      return <DeviceManagementScreen />;
+    case 'Timeline':
+      return <TimelineScreen />;
+    case 'MemoryThreads':
+      return <MemoryThreadsScreen />;
+    case 'Insights':
+      return <InsightsScreen />;
+    case 'NoteDetails':
+      return <NoteDetailsScreen />;
+    case 'Actions':
+      return <ActionsScreen />;
+    case 'Reminders':
+      return <RemindersScreen />;
+    case 'Search':
+      return <SearchScreen />;
+    case 'Settings':
+      return <SettingsScreen />;
+    case 'Home':
+    default:
+      return <HomeScreen onNavigate={navigate} />;
+  }
+}
 
 export function AppShell() {
   const [route, setRoute] = useState<AppRouteName>('Home');
   const { t } = useTranslation();
   const { session, loading, setSession, setError } = useAuthStore();
+  const activeTab = getTabForRoute(route);
+  const selectedMode = useCaptureStore((state) => state.selectedMode);
+  const setCaptureStatus = useCaptureStore((state) => state.setStatus);
+  const { isLoading: isCaptureLoading, isRecording, toggleCapture } = useCaptureToggle();
 
   useEffect(() => {
     let mounted = true;
@@ -44,9 +71,9 @@ export function AppShell() {
       }
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((_, nextSession) => {
       if (!mounted) return;
-      setSession(session ?? null);
+      setSession(nextSession ?? null);
     });
 
     return () => {
@@ -69,81 +96,102 @@ export function AppShell() {
     return <AuthScreen />;
   }
 
+  async function handleCaptureTabPress() {
+    if (isCaptureLoading) return;
+    if (selectedMode === 'dongle') {
+      setRoute('Capture');
+      setCaptureStatus('Use a paired Voxa dongle to start hardware capture');
+      return;
+    }
+
+    const changed = await toggleCapture(getCaptureSource(selectedMode));
+    if (!changed) return;
+
+    setRoute('Capture');
+  }
+
   return (
     <SafeAreaView style={styles.root}>
-      {route === 'Home' ? (
-        <View style={styles.header}>
-          <View style={styles.heroBackground}>
-            <View style={styles.heroBubbleLarge} />
-            <View style={styles.heroBubbleSmall} />
-          </View>
-          <View style={[styles.brandCard, shadow.soft]}>
-            <Text style={styles.brand}>Voxa</Text>
-            <Text style={styles.tagline}>{t('brandTagline')}</Text>
-            <Text style={styles.heroDescription}>{t('brandDescription')}</Text>
-            <View style={styles.statsRow}>
-              <View style={styles.statChip}>
-                <Text style={styles.statText}>{t('smartThreads')}</Text>
-              </View>
-              <View style={styles.statChip}>
-                <Text style={styles.statText}>{t('voiceCaptureChip')}</Text>
-              </View>
-              <View style={[styles.statChip, styles.statChipAccent]}>
-                <Text style={[styles.statText, styles.statTextAccent]}>{t('autoSummary')}</Text>
-              </View>
-            </View>
-          </View>
+      <View style={styles.utilityBar}>
+        <Text style={styles.utilityTitle}>Voxa</Text>
+      </View>
+
+      {activeTab.subRoutes && activeTab.subRoutes.length > 0 ? (
+        <View style={styles.subBar}>
+          {activeTab.subRoutes.map((subRoute) => {
+            const isActive = subRoute.name === route;
+            return (
+              <Pressable
+                key={subRoute.name}
+                accessibilityRole="button"
+                accessibilityLabel={t(subRoute.labelKey)}
+                onPress={() => setRoute(subRoute.name)}
+                style={[styles.subPill, isActive ? styles.subPillActive : null]}
+              >
+                <Text style={[styles.subPillText, isActive ? styles.subPillTextActive : null]}>
+                  {t(subRoute.labelKey)}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
       ) : null}
+
       <View style={styles.content}>{renderRoute(route, setRoute)}</View>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.navWrapper}
-        contentContainerStyle={styles.nav}
-      >
-        {routes.map((item) => {
-          const isActive = item.name === route;
+
+      <View style={[styles.tabBar, shadow.soft]}>
+        {TABS.map((tab) => {
+          const isActive = tab.id === activeTab.id;
+          const isCapture = tab.id === 'capture';
+
+          if (isCapture) {
+            return (
+              <Pressable
+                key={tab.id}
+                accessibilityRole="button"
+                accessibilityLabel={t(tab.labelKey)}
+                onPress={handleCaptureTabPress}
+                disabled={isCaptureLoading}
+                style={[styles.captureTab, isCaptureLoading ? styles.tabDisabled : null]}
+                hitSlop={8}
+              >
+                <View
+                  style={[
+                    styles.captureButton,
+                    isActive ? styles.captureButtonActive : null,
+                    isRecording ? styles.captureButtonRecording : null,
+                  ]}
+                >
+                  <Text style={styles.captureIcon}>{tab.icon}</Text>
+                </View>
+                <Text style={[styles.tabLabel, styles.captureLabel, isActive ? styles.tabLabelActive : null]}>
+                  {t(tab.labelKey)}
+                </Text>
+              </Pressable>
+            );
+          }
+
           return (
             <Pressable
-              key={item.name}
+              key={tab.id}
               accessibilityRole="button"
-              onPress={() => setRoute(item.name)}
-              style={[styles.navItem, isActive ? styles.navItemActive : null]}
+              accessibilityLabel={t(tab.labelKey)}
+              onPress={() => setRoute(tab.defaultRoute)}
+              style={styles.tab}
+              hitSlop={8}
             >
-              <Text style={[styles.navText, isActive ? styles.navTextActive : null]}>{t(item.labelKey)}</Text>
+              {isActive ? <View style={styles.tabIndicator} /> : null}
+              <Text style={[styles.tabIcon, isActive ? styles.tabIconActive : null]}>{tab.icon}</Text>
+              <Text style={[styles.tabLabel, isActive ? styles.tabLabelActive : null]}>
+                {t(tab.labelKey)}
+              </Text>
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
+
     </SafeAreaView>
   );
-}
-
-function renderRoute(route: AppRouteName, navigate: (route: AppRouteName) => void) {
-  switch (route) {
-    case 'Capture':
-      return <CaptureScreen />;
-    case 'DeviceManagement':
-      return <DeviceManagementScreen />;
-    case 'Timeline':
-      return <TimelineScreen />;
-    case 'MemoryThreads':
-      return <MemoryThreadsScreen />;
-    case 'Insights':
-      return <InsightsScreen />;
-    case 'NoteDetails':
-      return <NoteDetailsScreen />;
-    case 'Actions':
-      return <ActionsScreen />;
-    case 'Search':
-      return <SearchScreen />;
-    case 'More':
-      return <MoreScreen onNavigate={navigate} />;
-    case 'Home':
-    default:
-      return <HomeScreen />;
-  }
 }
 
 const styles = StyleSheet.create({
@@ -162,165 +210,146 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
-  header: {
-    position: 'relative',
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: palette.background,
-  },
-  heroAccent: {
-    position: 'absolute',
-    right: -60,
-    top: 10,
-    width: 180,
-    height: 180,
-    borderRadius: 120,
-    backgroundColor: palette.accentLight,
-    opacity: 0.28,
-  },
-  brandCard: {
-    borderRadius: 28,
-    backgroundColor: palette.surface,
-    borderWidth: 1,
-    borderColor: palette.borderLight,
-    padding: spacing.lg,
-    overflow: 'hidden',
-    marginBottom: spacing.md,
-  },
-  brand: {
-    fontSize: 34,
-    fontWeight: '900',
-    color: palette.text,
-  },
-  tagline: {
-    marginTop: spacing.sm,
-    color: palette.textSecondary,
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  badgeRow: {
+  utilityBar: {
+    minHeight: 50,
     flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.md,
-  },
-  heroBadge: {
-    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
-    backgroundColor: palette.accentLight,
+    backgroundColor: palette.background,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: palette.border,
   },
-  heroBadgeSecondary: {
-    backgroundColor: palette.surfaceLighter,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.accentLight,
+  utilityTitle: {
+    color: palette.text,
+    fontSize: 18,
+    fontWeight: '900',
   },
-  heroBadgeText: {
-    color: palette.surface,
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  heroBadgeTextSecondary: {
-    color: palette.accentStrong,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-  },
-  navWrapper: {
-    height: 90,
-    minHeight: 90,
-    maxHeight: 90,
-    backgroundColor: palette.surface,
-    borderTopWidth: 0,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: -8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 12,
-  },
-  nav: {
+  subBar: {
     flexDirection: 'row',
-    height: '100%',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
     paddingHorizontal: spacing.md,
-    backgroundColor: 'transparent',
-    gap: spacing.sm,
-    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    backgroundColor: palette.background,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: palette.border,
   },
-  navItem: {
-    minHeight: 48,
+  subPill: {
+    minHeight: 34,
     justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
     borderRadius: 999,
-    paddingHorizontal: spacing.lg,
     backgroundColor: palette.surfaceSoft,
-    borderWidth: 1,
-    borderColor: palette.borderLight,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.border,
   },
-  navItemActive: {
+  subPillActive: {
     backgroundColor: palette.accent,
     borderColor: palette.accent,
   },
-  navText: {
-    color: palette.muted,
-    fontSize: 14,
+  subPillText: {
+    fontSize: 13,
     fontWeight: '700',
-  },
-  navTextActive: {
-    color: palette.surface,
-  },
-  heroBackground: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: -1,
-  },
-  heroBubbleLarge: {
-    position: 'absolute',
-    right: -80,
-    top: -80,
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: palette.accentLight,
-    opacity: 0.24,
-  },
-  heroBubbleSmall: {
-    position: 'absolute',
-    left: -30,
-    top: 40,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: palette.highlight,
-    opacity: 0.16,
-  },
-  heroDescription: {
-    marginTop: spacing.sm,
     color: palette.muted,
-    fontSize: 14,
-    lineHeight: 20,
   },
-  statsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginTop: spacing.md,
+  subPillTextActive: {
+    color: palette.text,
   },
-  statChip: {
-    borderRadius: 999,
-    backgroundColor: palette.surfaceSoft,
-    paddingVertical: 7,
+  content: {
+    flex: 1,
     paddingHorizontal: spacing.md,
   },
-  statChipAccent: {
+  tabBar: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    minHeight: 88,
+    backgroundColor: palette.surface,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: palette.border,
+    paddingTop: 4,
+    paddingBottom: 12,
+  },
+  tab: {
+    flex: 1,
+    minHeight: 62,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 4,
+    paddingTop: 10,
+    paddingBottom: 2,
+    position: 'relative',
+  },
+  tabIndicator: {
+    position: 'absolute',
+    top: 0,
+    width: 20,
+    height: 3,
+    borderRadius: 999,
     backgroundColor: palette.accent,
-    borderColor: 'transparent',
   },
-  statText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: palette.accentStrong,
+  tabIcon: {
+    fontSize: 20,
+    color: palette.muted,
+    lineHeight: 24,
   },
-  statTextAccent: {
-    color: palette.surface,
+  tabIconActive: {
+    color: palette.accent,
+  },
+  tabLabel: {
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: '600',
+    color: palette.muted,
+    textAlign: 'center',
+  },
+  tabLabelActive: {
+    color: palette.accent,
+    fontWeight: '800',
+  },
+  tabDisabled: {
+    opacity: 0.64,
+  },
+  captureTab: {
+    flex: 1,
+    minHeight: 82,
+    alignItems: 'center',
+    gap: 4,
+    marginTop: -30,
+    paddingBottom: 2,
+  },
+  captureButton: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: palette.success,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: palette.surface,
+    shadowColor: palette.success,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.38,
+    shadowRadius: 18,
+    elevation: 10,
+  },
+  captureButtonActive: {
+    backgroundColor: palette.success,
+    borderColor: '#a7f3d0',
+  },
+  captureButtonRecording: {
+    backgroundColor: palette.danger,
+    borderColor: '#fecaca',
+    shadowColor: palette.danger,
+  },
+  captureIcon: {
+    fontSize: 22,
+    lineHeight: 25,
+    color: palette.text,
+  },
+  captureLabel: {
+    color: palette.success,
   },
 });
-

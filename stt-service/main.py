@@ -32,11 +32,8 @@ async def health():
 
 @app.post("/transcribe", response_model=TranscriptionResponse)
 async def transcribe(request: TranscriptionRequest):
-    if provider_name() == "mock":
-        return TranscriptionResponse(
-            text=f"Mock transcript for recording {request.recordingId}.",
-            language=os.getenv("STT_MOCK_LANGUAGE", "ru"),
-        )
+    if provider_name() != "command":
+        raise HTTPException(status_code=500, detail="STT_SERVICE_PROVIDER must be command.")
 
     with tempfile.TemporaryDirectory() as temp_dir:
         audio_path = Path(temp_dir) / audio_file_name(request)
@@ -50,7 +47,7 @@ async def transcribe(request: TranscriptionRequest):
 
 
 def provider_name() -> str:
-    return os.getenv("STT_SERVICE_PROVIDER", "mock").strip().lower()
+    return os.getenv("STT_SERVICE_PROVIDER", "command").strip().lower()
 
 
 def audio_file_name(request: TranscriptionRequest) -> str:
@@ -64,7 +61,7 @@ def audio_file_name(request: TranscriptionRequest) -> str:
 
 
 async def download_audio(signed_url: str, audio_path: Path) -> None:
-    async with httpx.AsyncClient(timeout=60) as client:
+    async with httpx.AsyncClient(timeout=60, trust_env=False) as client:
         response = await client.get(signed_url)
 
     if not response.is_success:
@@ -76,7 +73,7 @@ async def download_audio(signed_url: str, audio_path: Path) -> None:
 def run_transcription_command(audio_path: Path, output_path: Path) -> str:
     command_template = os.getenv("STT_COMMAND")
     if not command_template:
-        raise HTTPException(status_code=500, detail="STT_COMMAND is required when STT_SERVICE_PROVIDER is not mock.")
+        raise HTTPException(status_code=500, detail="STT_COMMAND is required.")
 
     command = command_template.format(audio_path=audio_path, output_path=output_path)
     completed = subprocess.run(

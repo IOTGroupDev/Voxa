@@ -1,11 +1,16 @@
-import { Text, View, StyleSheet } from 'react-native';
+import { Pressable, Text, View, StyleSheet } from 'react-native';
 import { useInsightsQuery, useMemoryThreadsQuery, useTimelineQuery } from '../lib/api/hooks';
 import { DataStateScreen } from './DataStateScreen';
 import { ListCard, PanelCard, ProgressBar } from './ui';
 import { useTranslation } from './i18n';
 import { palette, spacing } from './theme';
+import { AppRouteName } from '../types';
 
-export function HomeScreen() {
+interface HomeScreenProps {
+  onNavigate?: (route: AppRouteName) => void;
+}
+
+export function HomeScreen({ onNavigate }: HomeScreenProps) {
   const { t } = useTranslation();
   const timeline = useTimelineQuery();
   const threads = useMemoryThreadsQuery();
@@ -45,21 +50,33 @@ export function HomeScreen() {
 
       <PanelCard title={t('quickActions')}>
         <View style={styles.actionsGrid}>
-          <View style={styles.actionCard}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => onNavigate?.('Capture')}
+            style={({ pressed }) => [styles.actionCard, pressed ? styles.actionCardPressed : null]}
+          >
             <Text style={styles.actionIcon}>🎤</Text>
             <Text style={styles.actionTitle}>{t('voiceCapture')}</Text>
             <Text style={styles.actionSubtitle}>{t('quickActionVoice')}</Text>
-          </View>
-          <View style={styles.actionCard}>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => onNavigate?.('Timeline')}
+            style={({ pressed }) => [styles.actionCard, pressed ? styles.actionCardPressed : null]}
+          >
             <Text style={styles.actionIcon}>🧵</Text>
             <Text style={styles.actionTitle}>{t('organizeThreads')}</Text>
             <Text style={styles.actionSubtitle}>{t('quickActionOrganize')}</Text>
-          </View>
-          <View style={styles.actionCard}>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => onNavigate?.('Search')}
+            style={({ pressed }) => [styles.actionCard, pressed ? styles.actionCardPressed : null]}
+          >
             <Text style={styles.actionIcon}>⚡</Text>
             <Text style={styles.actionTitle}>{t('autoSummaries')}</Text>
             <Text style={styles.actionSubtitle}>{t('quickActionSummary')}</Text>
-          </View>
+          </Pressable>
         </View>
       </PanelCard>
 
@@ -121,15 +138,11 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   actionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
     marginTop: spacing.sm,
-    justifyContent: 'space-between',
   },
   actionCard: {
-    flexBasis: '48%',
-    minWidth: 150,
+    width: '100%',
     borderRadius: 28,
     backgroundColor: palette.surfaceSoft,
     borderWidth: StyleSheet.hairlineWidth,
@@ -138,6 +151,10 @@ const styles = StyleSheet.create({
     borderLeftColor: palette.accentLight,
     padding: spacing.md,
     gap: spacing.xs,
+  },
+  actionCardPressed: {
+    opacity: 0.82,
+    transform: [{ scale: 0.99 }],
   },
   actionIcon: {
     fontSize: 22,

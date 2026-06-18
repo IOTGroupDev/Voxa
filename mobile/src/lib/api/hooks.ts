@@ -27,6 +27,10 @@ export function useMeQuery() {
   return useQuery({ queryKey: queryKeys.me, queryFn: () => voxaApi.getMe() });
 }
 
+export function useDevicesQuery() {
+  return useQuery({ queryKey: queryKeys.devices, queryFn: () => voxaApi.listDevices() });
+}
+
 export function useTimelineQuery() {
   return useQuery({
     queryKey: queryKeys.timeline,
@@ -131,6 +135,20 @@ export function useReprocessEventMutation() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.memoryThreads });
       void queryClient.invalidateQueries({ queryKey: queryKeys.insights });
       void queryClient.invalidateQueries({ queryKey: queryKeys.notes });
+    },
+  });
+}
+
+export function useDeleteTimelineItemMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (eventId: string) => voxaApi.deleteMemoryEvent(eventId),
+    onSuccess() {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.timeline });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.memoryEvents });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.memoryThreads });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notes });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.recordings });
     },
   });
 }

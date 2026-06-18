@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { QUEUE_NAMES } from '@voxa/shared';
 import { Job } from 'bullmq';
@@ -11,6 +11,8 @@ type InsightJobData = AiPipelineJobData & { memoryThreadId: string };
 @Injectable()
 @Processor(QUEUE_NAMES.INSIGHT)
 export class InsightWorker extends WorkerHost {
+  private readonly logger = new Logger(InsightWorker.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly memoryService: MemoryService,
@@ -20,6 +22,9 @@ export class InsightWorker extends WorkerHost {
 
   async process(job: Job<InsightJobData>) {
     const { aiJobId, memoryThreadId, userId } = job.data;
+    this.logger.log(
+      `Insight started queueJobId=${job.id} aiJobId=${aiJobId} memoryThreadId=${memoryThreadId}`,
+    );
 
     await this.prisma.aiJob.update({
       where: { id: aiJobId },
@@ -60,6 +65,9 @@ export class InsightWorker extends WorkerHost {
       where: { id: aiJobId },
       data: { status: 'completed', completedAt: new Date() },
     });
+    this.logger.log(
+      `Insight completed queueJobId=${job.id} aiJobId=${completedJob.id} memoryThreadId=${memoryThreadId} insightId=${insight?.id ?? 'none'} generated=${Boolean(insight)}`,
+    );
 
     return { insightId: insight?.id ?? null, aiJobId: completedJob.id };
   }

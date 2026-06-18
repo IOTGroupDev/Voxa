@@ -70,7 +70,7 @@ export class AiService {
         userId: memoryEvent.userId,
         recordingId: memoryEvent.recordingId,
         memoryEventId: memoryEvent.id,
-        type: 'classification',
+        type: 'summary',
         status: 'pending',
         payload: {
           source: 'manual_reprocess_event',
@@ -78,7 +78,7 @@ export class AiService {
       },
     });
 
-    const queuedJob = await this.queueService.enqueueClassification({
+    const queuedJob = await this.queueService.enqueueSummary({
       aiJobId: aiJob.id,
       recordingId: memoryEvent.recordingId,
       memoryEventId: memoryEvent.id,

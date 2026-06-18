@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { QUEUE_NAMES } from '@voxa/shared';
 import { Job } from 'bullmq';
@@ -9,6 +9,8 @@ import { AiPipelineJobData } from './transcription.worker';
 @Injectable()
 @Processor(QUEUE_NAMES.REMINDER_SUGGESTION)
 export class ReminderSuggestionWorker extends WorkerHost {
+  private readonly logger = new Logger(ReminderSuggestionWorker.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly queueService: QueueService,
@@ -18,20 +20,27 @@ export class ReminderSuggestionWorker extends WorkerHost {
 
   async process(job: Job<AiPipelineJobData>) {
     const { aiJobId, recordingId, memoryEventId, userId, noteId } = job.data;
+    this.logger.log(
+      `Reminder suggestion started queueJobId=${job.id} aiJobId=${aiJobId} recordingId=${recordingId} memoryEventId=${memoryEventId} noteId=${noteId ?? 'none'}`,
+    );
     if (!noteId) {
       throw new Error('noteId is required for reminder suggestion.');
     }
 
     await this.markProcessing(aiJobId);
-    const reminder = await this.prisma.reminder.create({
-      data: {
-        userId,
-        noteId,
-        title: 'Follow up on captured memory',
-        remindAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        source: 'mock',
-      },
-    });
+    const note = await this.prisma.note.findUniqueOrThrow({ where: { id: noteId } });
+    const reminderTitle = inferReminderTitle([note.title, note.summary, note.body].filter(Boolean).join(' '));
+    const reminder = reminderTitle
+      ? await this.prisma.reminder.create({
+          data: {
+            userId,
+            noteId,
+            title: reminderTitle,
+            remindAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            source: 'capture_pipeline',
+          },
+        })
+      : null;
 
     const completedJob = await this.markCompleted(aiJobId);
     const embeddingJob = await this.prisma.aiJob.create({
@@ -51,8 +60,11 @@ export class ReminderSuggestionWorker extends WorkerHost {
       userId,
       noteId,
     });
+    this.logger.log(
+      `Reminder suggestion completed queueJobId=${job.id} aiJobId=${completedJob.id} reminderId=${reminder?.id ?? 'none'} nextQueueJobId=${queuedJob.jobId}`,
+    );
 
-    return { reminderId: reminder.id, aiJobId: completedJob.id, queuedJob };
+    return { reminderId: reminder?.id ?? null, aiJobId: completedJob.id, queuedJob };
   }
 
   private markProcessing(aiJobId: string) {
@@ -68,4 +80,13 @@ export class ReminderSuggestionWorker extends WorkerHost {
       data: { status: 'completed', completedAt: new Date() },
     });
   }
+}
+
+function inferReminderTitle(text: string) {
+  const normalized = text.trim().replace(/\s+/g, ' ');
+  if (!/\b(remind|reminder|напомни|напоминание|tomorrow|завтра|later|позже)\b/i.test(normalized)) {
+    return null;
+  }
+
+  return normalized.length > 96 ? `${normalized.slice(0, 93)}...` : normalized;
 }

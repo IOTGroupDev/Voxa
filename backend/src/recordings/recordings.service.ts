@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   DongleRecordingSyncStatus,
   CreateRecordingDto,
@@ -12,6 +12,8 @@ import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class RecordingsService {
+  private readonly logger = new Logger(RecordingsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly storageService: StorageService,
@@ -20,8 +22,11 @@ export class RecordingsService {
   async create(supabaseUserId: string, email: string | undefined, dto: CreateRecordingDto) {
     const user = await this.upsertUser(supabaseUserId, email);
     const recordingId = crypto.randomUUID();
+    this.logger.log(
+      `Creating recording recordingId=${recordingId} userId=${user.id} source=${dto.source} deviceId=${dto.deviceId ?? 'none'} mimeType=${dto.mimeType}`,
+    );
 
-    return this.prisma.recording.create({
+    const recording = await this.prisma.recording.create({
       data: {
         id: recordingId,
         userId: user.id,
@@ -33,15 +38,19 @@ export class RecordingsService {
         durationMs: dto.durationMs,
       },
     });
+    this.logger.log(`Recording created recordingId=${recording.id} storagePath=${recording.storagePath}`);
+    return recording;
   }
 
   async createUploadUrl(supabaseUserId: string, id: string) {
     await this.findOwnedRecording(supabaseUserId, id);
+    this.logger.log(`Creating upload URL recordingId=${id}`);
     return this.storageService.createSignedUploadUrl(supabaseUserId, id);
   }
 
   async updateStatus(supabaseUserId: string, id: string, dto: UpdateRecordingStatusDto) {
     const recording = await this.findOwnedRecording(supabaseUserId, id);
+    this.logger.log(`Updating recording status recordingId=${recording.id} status=${dto.status}`);
 
     return this.prisma.recording.update({
       where: { id: recording.id },
@@ -73,6 +82,9 @@ export class RecordingsService {
     });
 
     if (existingRecording) {
+      this.logger.log(
+        `Updating dongle recording metadata recordingId=${existingRecording.id} deviceId=${device.id} localRecordingId=${dto.localRecordingId}`,
+      );
       return this.prisma.recording.update({
         where: { id: existingRecording.id },
         data: {
@@ -87,6 +99,9 @@ export class RecordingsService {
       });
     }
 
+    this.logger.log(
+      `Registering dongle recording metadata recordingId=${recordingId} deviceId=${device.id} localRecordingId=${dto.localRecordingId}`,
+    );
     return this.prisma.recording.create({
       data: {
         id: recordingId,
@@ -132,6 +147,9 @@ export class RecordingsService {
       throw new NotFoundException('Recording not found.');
     }
 
+    this.logger.log(
+      `Updating dongle sync status recordingId=${recording.id} deviceId=${device.id} localRecordingId=${dto.localRecordingId} status=${dto.syncStatus}`,
+    );
     return this.prisma.recording.update({
       where: { id: recording.id },
       data: {
@@ -181,6 +199,7 @@ export class RecordingsService {
 
   async remove(supabaseUserId: string, id: string) {
     const recording = await this.findOwnedRecording(supabaseUserId, id);
+    this.logger.warn(`Marking recording deleted recordingId=${recording.id}`);
 
     return this.prisma.recording.update({
       where: { id: recording.id },

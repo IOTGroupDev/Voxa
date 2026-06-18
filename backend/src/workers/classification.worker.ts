@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { MemoryEventType, QUEUE_NAMES } from '@voxa/shared';
 import { Job } from 'bullmq';
@@ -9,6 +9,8 @@ import { AiPipelineJobData } from './transcription.worker';
 @Injectable()
 @Processor(QUEUE_NAMES.CLASSIFICATION)
 export class ClassificationWorker extends WorkerHost {
+  private readonly logger = new Logger(ClassificationWorker.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly queueService: QueueService,
@@ -18,6 +20,9 @@ export class ClassificationWorker extends WorkerHost {
 
   async process(job: Job<AiPipelineJobData>) {
     const { aiJobId, recordingId, memoryEventId, userId } = job.data;
+    this.logger.log(
+      `Classification started queueJobId=${job.id} aiJobId=${aiJobId} recordingId=${recordingId} memoryEventId=${memoryEventId}`,
+    );
 
     await this.prisma.aiJob.update({
       where: { id: aiJobId },
@@ -28,11 +33,16 @@ export class ClassificationWorker extends WorkerHost {
       },
     });
 
+    const transcript = await this.prisma.transcript.findUnique({
+      where: { recordingId },
+    });
+    const classification = classifyTranscript(transcript?.text ?? '');
+
     const memoryEvent = await this.prisma.memoryEvent.update({
       where: { id: memoryEventId },
       data: {
-        type: MemoryEventType.QUICK_NOTE,
-        confidence: 0.5,
+        type: classification.type,
+        confidence: classification.confidence,
       },
     });
 
@@ -63,8 +73,32 @@ export class ClassificationWorker extends WorkerHost {
       memoryEventId,
       userId,
     });
+    this.logger.log(
+      `Classification completed queueJobId=${job.id} aiJobId=${completedJob.id} memoryEventId=${memoryEventId} type=${memoryEvent.type} confidence=${classification.confidence} nextQueueJobId=${queuedJob.jobId}`,
+    );
 
     return { memoryEventId, aiJobId: completedJob.id, queuedJob };
   }
 }
 
+function classifyTranscript(text: string): { type: MemoryEventType; confidence: number } {
+  const normalized = text.toLowerCase();
+
+  if (/\b(todo|task|action|надо|задача|сделать)\b/.test(normalized)) {
+    return { type: MemoryEventType.TASK, confidence: 0.72 };
+  }
+
+  if (/\b(idea|идея|можно|proposal|concept)\b/.test(normalized)) {
+    return { type: MemoryEventType.IDEA, confidence: 0.68 };
+  }
+
+  if (/\b(important|важно|critical|срочно)\b/.test(normalized)) {
+    return { type: MemoryEventType.IMPORTANT, confidence: 0.7 };
+  }
+
+  if (/\b(meeting|call|созвон|встреча)\b/.test(normalized)) {
+    return { type: MemoryEventType.MEETING, confidence: 0.66 };
+  }
+
+  return { type: MemoryEventType.QUICK_NOTE, confidence: 0.55 };
+}

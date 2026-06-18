@@ -18,7 +18,7 @@ export async function uploadAudioFileToSignedUrl(
 ): Promise<AudioFileUploadResult> {
   console.log('[upload] start', localUri.slice(-40));
 
-  if (!target.signedUrl || target.signedUrl === 'supabase-storage-not-configured') {
+  if (!target.signedUrl) {
     return { uploaded: false, skipped: true };
   }
 

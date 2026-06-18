@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   CompleteCaptureSessionDto,
   CreateCaptureSessionDto,
@@ -10,6 +10,8 @@ import { QueueService } from '../queue/queue.service';
 
 @Injectable()
 export class CaptureService {
+  private readonly logger = new Logger(CaptureService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly queueService: QueueService,
@@ -17,6 +19,9 @@ export class CaptureService {
 
   async createSession(supabaseUserId: string, email: string | undefined, dto: CreateCaptureSessionDto) {
     const user = await this.upsertUser(supabaseUserId, email);
+    this.logger.log(
+      `Creating capture session userId=${user.id} source=${dto.source} deviceId=${dto.deviceId ?? 'none'}`,
+    );
 
     const contextSnapshot = await this.prisma.contextSnapshot.create({
       data: {
@@ -34,7 +39,7 @@ export class CaptureService {
       },
     });
 
-    return this.prisma.captureSession.create({
+    const captureSession = await this.prisma.captureSession.create({
       data: {
         userId: user.id,
         deviceId: dto.deviceId,
@@ -44,10 +49,17 @@ export class CaptureService {
       },
       include: { contextSnapshot: true },
     });
+    this.logger.log(
+      `Capture session created sessionId=${captureSession.id} userId=${user.id} contextSnapshotId=${contextSnapshot.id}`,
+    );
+    return captureSession;
   }
 
   async completeSession(supabaseUserId: string, id: string, dto: CompleteCaptureSessionDto) {
     const captureSession = await this.findOwnedSession(supabaseUserId, id);
+    this.logger.log(
+      `Completing capture session sessionId=${captureSession.id} recordingId=${dto.recordingId}`,
+    );
     const recording = await this.prisma.recording.findFirst({
       where: {
         id: dto.recordingId,
@@ -114,12 +126,16 @@ export class CaptureService {
       memoryEventId: memoryEvent.id,
       userId: captureSession.userId,
     });
+    this.logger.log(
+      `Capture session completed sessionId=${updatedSession.id} memoryEventId=${memoryEvent.id} aiJobId=${aiJob.id} queueJobId=${queuedJob.jobId}`,
+    );
 
     return { captureSession: updatedSession, memoryEvent, aiJob, queuedJob };
   }
 
   async cancelSession(supabaseUserId: string, id: string) {
     const captureSession = await this.findOwnedSession(supabaseUserId, id);
+    this.logger.warn(`Cancelling capture session sessionId=${captureSession.id}`);
 
     return this.prisma.captureSession.update({
       where: { id: captureSession.id },

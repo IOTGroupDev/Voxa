@@ -32,6 +32,11 @@ export async function startRealAudioCapture(input: RunCaptureInput) {
 }
 
 export async function completeLocalCapture(activeCapture: ActiveCapture, input: RunCaptureInput) {
+  const completedRecordingSession = await stopLocalRecording(activeCapture);
+  return syncCompletedCapture(activeCapture, completedRecordingSession, input);
+}
+
+export async function stopLocalRecording(activeCapture: ActiveCapture) {
   const completedRecordingSession = await activeCapture.audioRecorder.stop(activeCapture.recordingSession.id);
   await sqliteMemoryStore.saveDraft({
     id: completedRecordingSession.id,
@@ -47,6 +52,15 @@ export async function completeLocalCapture(activeCapture: ActiveCapture, input: 
       localUri: completedRecordingSession.localUri,
     });
   }
+
+  return completedRecordingSession;
+}
+
+export async function syncCompletedCapture(
+  activeCapture: ActiveCapture,
+  completedRecordingSession: RecordingSession,
+  input: RunCaptureInput,
+) {
   try {
     const captureSession = await voxaApi.createCaptureSession(activeCapture.captureSessionDto);
     const recording = await voxaApi.createRecording({

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { QUEUE_NAMES } from '@voxa/shared';
 import { Job } from 'bullmq';
@@ -9,6 +9,8 @@ import { AiPipelineJobData } from './transcription.worker';
 @Injectable()
 @Processor(QUEUE_NAMES.EMBEDDING)
 export class EmbeddingWorker extends WorkerHost {
+  private readonly logger = new Logger(EmbeddingWorker.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly queueService: QueueService,
@@ -18,6 +20,9 @@ export class EmbeddingWorker extends WorkerHost {
 
   async process(job: Job<AiPipelineJobData>) {
     const { aiJobId, recordingId, memoryEventId, userId, noteId } = job.data;
+    this.logger.log(
+      `Embedding started queueJobId=${job.id} aiJobId=${aiJobId} recordingId=${recordingId} memoryEventId=${memoryEventId} noteId=${noteId ?? 'none'}`,
+    );
     if (!noteId) {
       throw new Error('noteId is required for embedding.');
     }
@@ -51,6 +56,9 @@ export class EmbeddingWorker extends WorkerHost {
       userId,
       noteId,
     });
+    this.logger.log(
+      `Embedding completed queueJobId=${job.id} aiJobId=${completedJob.id} noteChunkId=${chunk.id} nextQueueJobId=${queuedJob.jobId}`,
+    );
 
     return { noteChunkId: chunk.id, aiJobId: completedJob.id, queuedJob };
   }

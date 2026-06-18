@@ -47,6 +47,7 @@ export interface CreateMemoryEventDto {
 
 export interface UpdateMemoryEventDto {
   type?: MemoryEventType;
+  text?: string;
   title?: string;
   summary?: string;
   importanceScore?: number;

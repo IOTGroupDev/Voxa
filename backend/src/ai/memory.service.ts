@@ -22,7 +22,7 @@ export class MemoryService {
       data: {
         userId: input.userId,
         title,
-        description: 'TODO: Replace mock thread assignment with semantic clustering.',
+        description: `Memories grouped around "${title}".`,
         firstSeenAt: now,
         lastSeenAt: now,
         notesCount: input.noteId ? 1 : 0,
@@ -74,4 +74,3 @@ export class MemoryService {
     return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'memory';
   }
 }
-
