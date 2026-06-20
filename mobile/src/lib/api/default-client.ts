@@ -21,8 +21,7 @@ function getDefaultApiBaseUrl() {
 export const apiClient = createApiClient({
   baseUrl: getDefaultApiBaseUrl(),
   async getAccessToken() {
-    const { data, error } = await supabase.auth.getSession();
+    const { data } = await supabase.auth.getSession();
     return data.session?.access_token ?? null;
   },
 });
-
