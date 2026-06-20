@@ -1,15 +1,17 @@
 import { View, StyleSheet } from 'react-native';
 import { DataStateScreen } from '../../app/DataStateScreen';
+import { useTranslation } from '../../app/i18n';
 import { useMemoryThreadsQuery } from '../../lib/api/hooks';
 import { EmptyState, ListCard } from '../../app/ui';
 import { spacing } from '../../app/theme';
 
 export function MemoryThreadsScreen() {
+  const { t } = useTranslation();
   const threads = useMemoryThreadsQuery();
   const items = Array.isArray(threads.data) ? threads.data : [];
 
   return (
-    <DataStateScreen title="Memory Threads" isLoading={threads.isLoading} error={threads.error}>
+    <DataStateScreen title={t('threads')} isLoading={threads.isLoading} error={threads.error}>
       <View style={styles.list}>
         {items.map((item: { id: string; title: string; description?: string }) => (
           <ListCard
@@ -31,4 +33,3 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
 });
-

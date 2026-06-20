@@ -5,6 +5,12 @@ export interface EnvConfig {
   supabaseServiceRoleKey: string;
   redisUrl: string;
   aiProvider?: string;
+  geminiApiKey?: string;
+  llmProvider?: string;
+  llmModel?: string;
+  llmTimeoutMs?: string;
+  llmRetryAttempts?: string;
   sttProvider?: string;
   sttHttpEndpoint?: string;
+  enableDongleMode?: string;
 }

@@ -1,15 +1,17 @@
-import { Text, View, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { DataStateScreen } from '../../app/DataStateScreen';
+import { useTranslation } from '../../app/i18n';
 import { useInsightsQuery } from '../../lib/api/hooks';
 import { EmptyState, ListCard } from '../../app/ui';
 import { spacing } from '../../app/theme';
 
 export function InsightsScreen() {
+  const { t } = useTranslation();
   const insights = useInsightsQuery();
   const items = Array.isArray(insights.data) ? insights.data : [];
 
   return (
-    <DataStateScreen title="Insights" isLoading={insights.isLoading} error={insights.error}>
+    <DataStateScreen title={t('insights')} isLoading={insights.isLoading} error={insights.error}>
       <View style={styles.list}>
         {items.map((item: { id: string; title: string; body: string }) => (
           <ListCard key={item.id} title={item.title} detail={item.body} />
@@ -27,4 +29,3 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
 });
-

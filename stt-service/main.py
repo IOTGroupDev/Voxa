@@ -7,12 +7,14 @@ from pathlib import Path
 import httpx
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, HttpUrl
+import base64
 
 
 class TranscriptionRequest(BaseModel):
     recordingId: str
-    storagePath: str
-    signedUrl: HttpUrl
+    storagePath: str | None = None
+    signedUrl: HttpUrl | None = None
+    audioBase64: str | None = None
     mimeType: str | None = None
     durationMs: int | None = None
 
@@ -37,7 +39,12 @@ async def transcribe(request: TranscriptionRequest):
 
     with tempfile.TemporaryDirectory() as temp_dir:
         audio_path = Path(temp_dir) / audio_file_name(request)
-        await download_audio(str(request.signedUrl), audio_path)
+        if request.audioBase64:
+            write_base64_audio(request.audioBase64, audio_path)
+        elif request.signedUrl:
+            await download_audio(str(request.signedUrl), audio_path)
+        else:
+            raise HTTPException(status_code=400, detail="signedUrl or audioBase64 is required.")
 
         text = run_transcription_command(audio_path, Path(temp_dir) / "transcript")
         if not text.strip():
@@ -58,6 +65,13 @@ def audio_file_name(request: TranscriptionRequest) -> str:
         extension = ".mp3"
 
     return f"{request.recordingId}{extension}"
+
+
+def write_base64_audio(audio_base64: str, audio_path: Path) -> None:
+    try:
+        audio_path.write_bytes(base64.b64decode(audio_base64, validate=True))
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid base64 audio payload.") from exc
 
 
 async def download_audio(signed_url: str, audio_path: Path) -> None:

@@ -27,8 +27,10 @@ enum CaptureSource {
 enum ButtonGesture {
   single_press
   double_press
+  triple_press
   long_press
   press_and_hold
+  hold_and_speak
 }
 
 enum RecordingStatus {
@@ -73,6 +75,75 @@ enum InsightType {
   decision_needed
 }
 
+enum EntityType {
+  person
+  project
+  vehicle
+  pet
+  health
+  place
+  device
+  home
+  idea
+  organization
+  other
+}
+
+enum EntityRelationType {
+  related_to
+  part_of
+  belongs_to
+  works_on
+  owns
+  uses
+  discussed_with
+  affects
+  located_at
+  other
+}
+
+enum AiSuggestionType {
+  follow_up
+  unresolved_task
+  reminder_candidate
+  repeated_topic
+  decision_needed
+  continue_project
+  review_memory
+}
+
+enum AiSuggestionStatus {
+  pending
+  accepted
+  dismissed
+  done
+}
+
+enum AudioRetentionMode {
+  delete_after_processing
+  keep_7_days
+  keep_30_days
+  keep_forever
+}
+
+enum TranscriptRetentionMode {
+  keep_forever
+  delete_after_30_days
+  delete_after_90_days
+}
+
+enum AiProcessingMode {
+  cloud
+  local_only
+  hybrid
+}
+
+enum AudioDeletionStatus {
+  deleted
+  failed
+  skipped
+}
+
 enum CaptureSessionStatus {
   active
   completed
@@ -80,10 +151,14 @@ enum CaptureSessionStatus {
 }
 
 enum DeviceStatus {
-  active
-  inactive
-  lost
-  revoked
+  paired
+  disconnected
+  syncing
+  error
+}
+
+enum DeviceType {
+  dongle
 }
 
 enum DongleRecordingSyncStatus {
@@ -120,8 +195,27 @@ model User {
   dailySummaries   DailySummary[]
   aiJobs           AiJob[]
   syncItems        SyncItem[]
+  entities         Entity[]
+  entityMentions   EntityMention[]
+  entityRelations  EntityRelation[]
+  aiSuggestions    AiSuggestion[]
+  settings         UserSettings?
+  audioDeletionLogs AudioDeletionLog[]
 
   @@index([supabaseUserId])
+}
+
+model UserSettings {
+  id                      String                  @id @default(uuid())
+  userId                  String                  @unique
+  user                    User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  audioRetentionMode      AudioRetentionMode      @default(delete_after_processing)
+  transcriptRetentionMode TranscriptRetentionMode @default(keep_forever)
+  aiProcessingMode        AiProcessingMode        @default(cloud)
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+
+  @@index([userId])
 }
 
 model Device {
@@ -129,13 +223,15 @@ model Device {
   userId                 String
   user                   User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   hardwareId             String
+  type                   DeviceType        @default(dongle)
   displayName            String?
   firmwareVersion        String?
+  batteryLevel           Int?
   storageCapacityBytes   Int?
   storageUsedBytes       Int?
   supportsOfflineCapture Boolean           @default(false)
   firmwareStorageVersion String?
-  status                 DeviceStatus      @default(active)
+  status                 DeviceStatus      @default(paired)
   pairedAt               DateTime          @default(now())
   lastSeenAt             DateTime?
   createdAt              DateTime          @default(now())
@@ -171,19 +267,40 @@ model Recording {
   deviceDurationMs       Int?
   deviceAudioCodec       String?
   deviceChecksum         String?
+  audioDeletionScheduledAt DateTime?
+  audioDeletedAt         DateTime?
   createdAt              DateTime                   @default(now())
   updatedAt              DateTime                   @updatedAt
   memoryEvent            MemoryEvent?
   transcript             Transcript?
   captureSession         CaptureSession?
   aiJobs                 AiJob[]
+  entityMentions         EntityMention[]
   syncItems              SyncItem[]
+  audioDeletionLogs      AudioDeletionLog[]
 
   @@unique([deviceId, deviceLocalRecordingId])
   @@index([userId, status])
   @@index([deviceId])
   @@index([dongleSyncStatus])
+  @@index([audioDeletionScheduledAt])
   @@index([createdAt])
+}
+
+model AudioDeletionLog {
+  id          String              @id @default(uuid())
+  userId      String
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recordingId String?
+  recording   Recording?          @relation(fields: [recordingId], references: [id], onDelete: SetNull)
+  storagePath String
+  reason      String
+  deletedAt   DateTime            @default(now())
+  status      AudioDeletionStatus
+
+  @@index([userId, deletedAt])
+  @@index([recordingId])
+  @@index([status])
 }
 
 model CaptureSession {
@@ -238,6 +355,8 @@ model MemoryEvent {
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
   aiJobs            AiJob[]
+  entityMentions    EntityMention[]
+  aiSuggestions     AiSuggestion[]
 
   @@index([userId, occurredAt])
   @@index([userId, type])
@@ -327,6 +446,7 @@ model Transcript {
   provider    String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  entityMentions EntityMention[]
 
   @@index([userId])
 }
@@ -346,8 +466,99 @@ model Note {
   noteTags      NoteTag[]
   actionItems   ActionItem[]
   reminders     Reminder[]
+  entityMentions EntityMention[]
+  aiSuggestions AiSuggestion[]
 
   @@index([userId, createdAt])
+}
+
+model Entity {
+  id             String          @id @default(uuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  normalizedName String
+  type           EntityType
+  summary        String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  mentions       EntityMention[]
+  outgoingRelations EntityRelation[] @relation("SourceEntityRelations")
+  incomingRelations EntityRelation[] @relation("TargetEntityRelations")
+  aiSuggestions AiSuggestion[]
+
+  @@unique([userId, normalizedName])
+  @@index([userId, name])
+  @@index([userId, type])
+  @@index([updatedAt])
+}
+
+model EntityRelation {
+  id             String             @id @default(uuid())
+  userId         String
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceEntityId String
+  sourceEntity   Entity             @relation("SourceEntityRelations", fields: [sourceEntityId], references: [id], onDelete: Cascade)
+  targetEntityId String
+  targetEntity   Entity             @relation("TargetEntityRelations", fields: [targetEntityId], references: [id], onDelete: Cascade)
+  relationType   EntityRelationType
+  confidence     Float
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@unique([userId, sourceEntityId, targetEntityId, relationType])
+  @@index([userId])
+  @@index([sourceEntityId])
+  @@index([targetEntityId])
+}
+
+model AiSuggestion {
+  id                   String             @id @default(uuid())
+  userId               String
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title                String
+  body                 String
+  type                 AiSuggestionType
+  status               AiSuggestionStatus @default(pending)
+  relatedEntityId      String?
+  relatedEntity        Entity?            @relation(fields: [relatedEntityId], references: [id], onDelete: SetNull)
+  relatedNoteId        String?
+  relatedNote          Note?              @relation(fields: [relatedNoteId], references: [id], onDelete: SetNull)
+  relatedMemoryEventId String?
+  relatedMemoryEvent   MemoryEvent?       @relation(fields: [relatedMemoryEventId], references: [id], onDelete: SetNull)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, type])
+  @@index([relatedEntityId])
+  @@index([relatedNoteId])
+  @@index([relatedMemoryEventId])
+}
+
+model EntityMention {
+  id            String       @id @default(uuid())
+  userId        String
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entityId      String
+  entity        Entity       @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  noteId        String?
+  note          Note?        @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  transcriptId  String?
+  transcript    Transcript?  @relation(fields: [transcriptId], references: [id], onDelete: Cascade)
+  memoryEventId String?
+  memoryEvent   MemoryEvent? @relation(fields: [memoryEventId], references: [id], onDelete: Cascade)
+  recordingId   String?
+  recording     Recording?   @relation(fields: [recordingId], references: [id], onDelete: Cascade)
+  confidence    Float
+  createdAt     DateTime     @default(now())
+
+  @@index([userId])
+  @@index([entityId, createdAt])
+  @@index([noteId])
+  @@index([transcriptId])
+  @@index([memoryEventId])
+  @@index([recordingId])
 }
 
 model NoteChunk {

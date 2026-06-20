@@ -1,15 +1,17 @@
 import { View, StyleSheet } from 'react-native';
 import { DataStateScreen } from '../../app/DataStateScreen';
+import { useTranslation } from '../../app/i18n';
 import { useRemindersQuery } from '../../lib/api/hooks';
 import { EmptyState, ListCard } from '../../app/ui';
 import { spacing } from '../../app/theme';
 
 export function RemindersScreen() {
+  const { t } = useTranslation();
   const reminders = useRemindersQuery();
   const items = Array.isArray(reminders.data) ? reminders.data : [];
 
   return (
-    <DataStateScreen title="Reminders" isLoading={reminders.isLoading} error={reminders.error}>
+    <DataStateScreen title={t('reminders')} isLoading={reminders.isLoading} error={reminders.error}>
       <View style={styles.list}>
         {items.map((item: { id: string; title: string; remindAt: string }) => (
           <ListCard

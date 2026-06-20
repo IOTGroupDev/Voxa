@@ -1,88 +1,93 @@
-import { useEffect, useState } from 'react';
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Linking, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { CaptureSource } from '@voxa/shared';
 import { ActionsScreen } from '../features/actions/ActionsScreen';
 import { AuthScreen } from '../features/auth/AuthScreen';
-import { CaptureScreen } from '../features/capture/CaptureScreen';
 import { useCaptureToggle } from '../features/capture/useCaptureToggle';
 import { DeviceManagementScreen } from '../features/devices/DeviceManagementScreen';
+import { EntitiesScreen } from '../features/entities/EntitiesScreen';
+import { EntityDetailScreen } from '../features/entities/EntityDetailScreen';
 import { InsightsScreen } from '../features/insights/InsightsScreen';
 import { MemoryThreadsScreen } from '../features/memory-threads/MemoryThreadsScreen';
 import { NoteDetailsScreen } from '../features/notes/NoteDetailsScreen';
+import { OnboardingStack } from '../features/onboarding/OnboardingStack';
+import { RecordingResultScreen } from '../features/recording-result/RecordingResultScreen';
 import { RemindersScreen } from '../features/reminders/RemindersScreen';
 import { SearchScreen } from '../features/search/SearchScreen';
-import { SettingsScreen } from '../features/settings/SettingsScreen';
+import {
+  AccountSettingsScreen,
+  CaptureSettingsScreen,
+  LanguageSettingsScreen,
+  PrivacySettingsScreen,
+  SettingsHomeScreen,
+} from '../features/settings/SettingsScreen';
 import { TimelineScreen } from '../features/timeline/TimelineScreen';
-import { AppRouteName } from '../types';
+import { MainNavigationTarget, MainTabId, LibraryRoute, SettingsRoute } from '../types';
 import { HomeScreen } from './HomeScreen';
+import { appConfig } from './config';
 import { useTranslation } from './i18n';
+import { SETTINGS_ROUTES, TABS, getTabById } from './navigation';
+import { speakVoiceFeedback } from '../lib/voice/voice-feedback';
 import { supabase } from '../lib/supabase/client';
 import { useAuthStore } from '../state/auth.store';
 import { getCaptureSource, useCaptureStore } from '../state/capture.store';
-import { getTabForRoute, TABS } from './navigation';
+import { useOnboardingStore } from '../state/onboarding.store';
 import { palette, shadow, spacing } from './theme';
 
-function renderRoute(route: AppRouteName, navigate: (route: AppRouteName) => void) {
-  switch (route) {
-    case 'Capture':
-      return <CaptureScreen />;
-    case 'DeviceManagement':
-      return <DeviceManagementScreen />;
-    case 'Timeline':
-      return <TimelineScreen />;
-    case 'MemoryThreads':
-      return <MemoryThreadsScreen />;
-    case 'Insights':
-      return <InsightsScreen />;
-    case 'NoteDetails':
-      return <NoteDetailsScreen />;
-    case 'Actions':
-      return <ActionsScreen />;
-    case 'Reminders':
-      return <RemindersScreen />;
-    case 'Search':
-      return <SearchScreen />;
-    case 'Settings':
-      return <SettingsScreen />;
-    case 'Home':
-    default:
-      return <HomeScreen onNavigate={navigate} />;
-  }
-}
-
 export function AppShell() {
-  const [route, setRoute] = useState<AppRouteName>('Home');
   const { t } = useTranslation();
-  const { session, loading, setSession, setError } = useAuthStore();
-  const activeTab = getTabForRoute(route);
-  const selectedMode = useCaptureStore((state) => state.selectedMode);
-  const setCaptureStatus = useCaptureStore((state) => state.setStatus);
-  const { isLoading: isCaptureLoading, isRecording, toggleCapture } = useCaptureToggle();
+  const session = useAuthStore((state) => state.session);
+  const authStatus = useAuthStore((state) => state.status);
+  const initializeSession = useAuthStore((state) => state.initializeSession);
+  const handleSessionChange = useAuthStore((state) => state.handleSessionChange);
+  const onboardingHydrated = useOnboardingStore((state) => state.hydrated);
+  const hydrateOnboarding = useOnboardingStore((state) => state.hydrate);
+  const isOnboarded = useOnboardingStore((state) => state.isCompleted(session?.user.id));
+  const completeOnboarding = useOnboardingStore((state) => state.complete);
+  const requestAutostartCapture = useCaptureStore((state) => state.requestAutostartCapture);
+  const handledInitialUrlRef = useRef(false);
+  const lastAutostartUrlRef = useRef<{ url: string; handledAt: number } | null>(null);
 
   useEffect(() => {
-    let mounted = true;
+    void initializeSession();
+    void hydrateOnboarding();
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (mounted) {
-        setSession(data.session ?? null);
-      }
-    }).catch((error) => {
-      if (mounted) {
-        setError(error?.message ?? 'Unable to load session');
-      }
-    });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_, nextSession) => {
-      if (!mounted) return;
-      setSession(nextSession ?? null);
+    const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      const expired = event === 'TOKEN_REFRESHED' && !nextSession;
+      handleSessionChange(nextSession ?? null, expired ? 'expired' : nextSession ? undefined : 'signed_out');
     });
 
     return () => {
-      mounted = false;
       listener?.subscription?.unsubscribe?.();
     };
-  }, [setSession, setError]);
+  }, [handleSessionChange, hydrateOnboarding, initializeSession]);
 
-  if (loading) {
+  useEffect(() => {
+    function handleDeepLink(url: string | null) {
+      if (!url || !isCaptureAutostartUrl(url)) return;
+      const now = Date.now();
+      const last = lastAutostartUrlRef.current;
+      if (last?.url === url && now - last.handledAt < 1500) return;
+
+      lastAutostartUrlRef.current = { url, handledAt: now };
+      requestAutostartCapture();
+    }
+
+    if (!handledInitialUrlRef.current) {
+      handledInitialUrlRef.current = true;
+      void Linking.getInitialURL().then(handleDeepLink);
+    }
+
+    const subscription = Linking.addEventListener('url', (event) => {
+      handleDeepLink(event.url);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [requestAutostartCapture]);
+
+  if (authStatus === 'checking_session' || !onboardingHydrated) {
     return (
       <SafeAreaView style={styles.root}>
         <View style={styles.loadingContainer}>
@@ -93,21 +98,76 @@ export function AppShell() {
   }
 
   if (!session) {
-    return <AuthScreen />;
+    return <AuthStack />;
   }
 
-  async function handleCaptureTabPress() {
+  if (!isOnboarded) {
+    return (
+      <OnboardingStack
+        onComplete={() => {
+          void completeOnboarding(session.user.id);
+        }}
+      />
+    );
+  }
+
+  return <MainTabs />;
+}
+
+function AuthStack() {
+  return <AuthScreen />;
+}
+
+function MainTabs() {
+  const [activeTab, setActiveTab] = useState<MainTabId>('today');
+  const [libraryRoute, setLibraryRoute] = useState<LibraryRoute>({ name: 'Entities' });
+  const [settingsRoute, setSettingsRoute] = useState<SettingsRoute>({ name: 'SettingsHome' });
+  const [askQuestion, setAskQuestion] = useState<string | undefined>();
+  const { t, language } = useTranslation();
+  const selectedMode = useCaptureStore((state) => state.selectedMode);
+  const setCaptureStatus = useCaptureStore((state) => state.setStatus);
+  const { isLoading: isCaptureLoading, isRecording, startCapture, toggleCapture } = useCaptureToggle();
+  const pendingAutostartCapture = useCaptureStore((state) => state.pendingAutostartCapture);
+  const consumeAutostartCapture = useCaptureStore((state) => state.consumeAutostartCapture);
+  const activeTabConfig = getTabById(activeTab);
+
+  useEffect(() => {
+    if (!pendingAutostartCapture) return;
+    setActiveTab('today');
     if (isCaptureLoading) return;
+    consumeAutostartCapture();
+    if (isRecording) return;
+
+    void startCapture(CaptureSource.AIRPODS_SHORTCUT);
+  }, [consumeAutostartCapture, isCaptureLoading, isRecording, pendingAutostartCapture, startCapture]);
+
+  function navigate(target: MainNavigationTarget) {
+    setActiveTab(target.tab);
+    if (target.tab === 'ask') {
+      setAskQuestion(target.question);
+    }
+    if (target.tab === 'memory' && target.route) {
+      setLibraryRoute(target.route);
+    }
+    if (target.tab === 'settings' && target.route) {
+      setSettingsRoute(target.route);
+    }
+  }
+
+  async function handleCaptureAction() {
+    if (isCaptureLoading) return;
+
     if (selectedMode === 'dongle') {
-      setRoute('Capture');
-      setCaptureStatus('Use a paired Voxa dongle to start hardware capture');
+      setCaptureStatus('Open Settings -> Dongle to use hardware capture.');
+      navigate({ tab: 'settings', route: { name: 'DongleSettings' } });
+      void speakVoiceFeedback('dongleCapture', language);
       return;
     }
 
-    const changed = await toggleCapture(getCaptureSource(selectedMode));
-    if (!changed) return;
-
-    setRoute('Capture');
+    const result = await toggleCapture(getCaptureSource(selectedMode));
+    if (result.phase === 'stopped' && result.recordingId) {
+      navigate({ tab: 'memory', route: { name: 'RecordingResult', recordingId: result.recordingId } });
+    }
   }
 
   return (
@@ -116,16 +176,16 @@ export function AppShell() {
         <Text style={styles.utilityTitle}>Voxa</Text>
       </View>
 
-      {activeTab.subRoutes && activeTab.subRoutes.length > 0 ? (
+      {activeTab === 'memory' && activeTabConfig.subRoutes?.length ? (
         <View style={styles.subBar}>
-          {activeTab.subRoutes.map((subRoute) => {
-            const isActive = subRoute.name === route;
+          {activeTabConfig.subRoutes.map((subRoute) => {
+            const isActive = subRoute.route.name === libraryRoute.name;
             return (
               <Pressable
-                key={subRoute.name}
+                key={subRoute.route.name}
                 accessibilityRole="button"
                 accessibilityLabel={t(subRoute.labelKey)}
-                onPress={() => setRoute(subRoute.name)}
+                onPress={() => setLibraryRoute(subRoute.route)}
                 style={[styles.subPill, isActive ? styles.subPillActive : null]}
               >
                 <Text style={[styles.subPillText, isActive ? styles.subPillTextActive : null]}>
@@ -137,11 +197,41 @@ export function AppShell() {
         </View>
       ) : null}
 
-      <View style={styles.content}>{renderRoute(route, setRoute)}</View>
+      {activeTab === 'settings' ? (
+        <View style={styles.subBar}>
+          {SETTINGS_ROUTES.filter((item) => appConfig.enableDongleMode || item.route.name !== 'DongleSettings').map((item) => {
+            const isActive = item.route.name === settingsRoute.name;
+            return (
+              <Pressable
+                key={item.route.name}
+                accessibilityRole="button"
+                accessibilityLabel={t(item.labelKey)}
+                onPress={() => setSettingsRoute(item.route)}
+                style={[styles.subPill, isActive ? styles.subPillActive : null]}
+              >
+                <Text style={[styles.subPillText, isActive ? styles.subPillTextActive : null]}>
+                  {t(item.labelKey)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+
+      <View style={styles.content}>
+        {activeTab === 'today' ? <HomeScreen onNavigate={navigate} /> : null}
+        {activeTab === 'memory' ? (
+          <LibraryStack route={libraryRoute} onRouteChange={setLibraryRoute} onNavigate={navigate} />
+        ) : null}
+        {activeTab === 'ask' ? <SearchScreen initialQuestion={askQuestion} /> : null}
+        {activeTab === 'settings' ? (
+          <SettingsStack route={settingsRoute} onRouteChange={setSettingsRoute} onOpenResult={(recordingId) => navigate({ tab: 'memory', route: { name: 'RecordingResult', recordingId } })} />
+        ) : null}
+      </View>
 
       <View style={[styles.tabBar, shadow.soft]}>
         {TABS.map((tab) => {
-          const isActive = tab.id === activeTab.id;
+          const isActive = tab.id === activeTab;
           const isCapture = tab.id === 'capture';
 
           if (isCapture) {
@@ -150,23 +240,15 @@ export function AppShell() {
                 key={tab.id}
                 accessibilityRole="button"
                 accessibilityLabel={t(tab.labelKey)}
-                onPress={handleCaptureTabPress}
+                onPress={handleCaptureAction}
                 disabled={isCaptureLoading}
                 style={[styles.captureTab, isCaptureLoading ? styles.tabDisabled : null]}
                 hitSlop={8}
               >
-                <View
-                  style={[
-                    styles.captureButton,
-                    isActive ? styles.captureButtonActive : null,
-                    isRecording ? styles.captureButtonRecording : null,
-                  ]}
-                >
-                  <Text style={styles.captureIcon}>{tab.icon}</Text>
+                <View style={[styles.captureButton, isRecording ? styles.captureButtonRecording : null]}>
+                  <Text style={styles.captureIcon}>{isRecording ? '■' : tab.icon}</Text>
                 </View>
-                <Text style={[styles.tabLabel, styles.captureLabel, isActive ? styles.tabLabelActive : null]}>
-                  {t(tab.labelKey)}
-                </Text>
+                <Text style={[styles.tabLabel, styles.captureLabel]}>{t(tab.labelKey)}</Text>
               </Pressable>
             );
           }
@@ -176,7 +258,12 @@ export function AppShell() {
               key={tab.id}
               accessibilityRole="button"
               accessibilityLabel={t(tab.labelKey)}
-              onPress={() => setRoute(tab.defaultRoute)}
+              onPress={() => {
+                if (tab.id === 'ask') {
+                  setAskQuestion(undefined);
+                }
+                setActiveTab(tab.id);
+              }}
               style={styles.tab}
               hitSlop={8}
             >
@@ -189,9 +276,104 @@ export function AppShell() {
           );
         })}
       </View>
-
     </SafeAreaView>
   );
+}
+
+function isCaptureAutostartUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'voxa:' && parsed.hostname === 'capture' && parsed.searchParams.get('autostart') === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function LibraryStack({
+  route,
+  onRouteChange,
+  onNavigate,
+}: {
+  route: LibraryRoute;
+  onRouteChange: (route: LibraryRoute) => void;
+  onNavigate: (target: MainNavigationTarget) => void;
+}) {
+  switch (route.name) {
+    case 'RecordingResult':
+      return (
+        <RecordingResultScreen
+          recordingId={route.recordingId}
+          onNavigate={(target) => {
+            if (target === 'Timeline') onRouteChange({ name: 'Timeline' });
+            if (target === 'Search') onNavigate({ tab: 'ask' });
+          }}
+        />
+      );
+    case 'NoteDetails':
+      return <NoteDetailsScreen />;
+    case 'Entities':
+      return (
+        <EntitiesScreen
+          onOpenEntity={(entityId) => onRouteChange({ name: 'EntityDetail', entityId })}
+          onOpenRecording={(recordingId) => onRouteChange({ name: 'RecordingResult', recordingId })}
+        />
+      );
+    case 'EntityDetail':
+      return (
+        <EntityDetailScreen
+          entityId={route.entityId}
+          onNavigate={(target, question) => {
+            if (target === 'Search') onNavigate({ tab: 'ask', question });
+          }}
+          onOpenEntity={(entityId) => onRouteChange({ name: 'EntityDetail', entityId })}
+        />
+      );
+    case 'MemoryThreads':
+      return <MemoryThreadsScreen />;
+    case 'Insights':
+      return <InsightsScreen />;
+    case 'Actions':
+      return <ActionsScreen />;
+    case 'Reminders':
+      return <RemindersScreen />;
+    case 'Timeline':
+    default:
+      return (
+        <TimelineScreen
+          onOpenResult={(recordingId) => onRouteChange({ name: 'RecordingResult', recordingId })}
+        />
+      );
+  }
+}
+
+function SettingsStack({
+  route,
+  onRouteChange,
+  onOpenResult,
+}: {
+  route: SettingsRoute;
+  onRouteChange: (route: SettingsRoute) => void;
+  onOpenResult: (recordingId: string) => void;
+}) {
+  switch (route.name) {
+    case 'AccountSettings':
+      return <AccountSettingsScreen />;
+    case 'PrivacySettings':
+      return <PrivacySettingsScreen />;
+    case 'LanguageSettings':
+      return <LanguageSettingsScreen />;
+    case 'CaptureSettings':
+      return <CaptureSettingsScreen />;
+    case 'DongleSettings':
+      return appConfig.enableDongleMode ? (
+        <DeviceManagementScreen onOpenResult={onOpenResult} />
+      ) : (
+        <SettingsHomeScreen onNavigate={onRouteChange} />
+      );
+    case 'SettingsHome':
+    default:
+      return <SettingsHomeScreen onNavigate={onRouteChange} />;
+  }
 }
 
 const styles = StyleSheet.create({
@@ -334,10 +516,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.38,
     shadowRadius: 18,
     elevation: 10,
-  },
-  captureButtonActive: {
-    backgroundColor: palette.success,
-    borderColor: '#a7f3d0',
   },
   captureButtonRecording: {
     backgroundColor: palette.danger,

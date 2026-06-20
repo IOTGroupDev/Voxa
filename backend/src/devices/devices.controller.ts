@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
-import { PairDeviceDto, UpdateDeviceStatusDto } from '@voxa/shared';
+import { PairDeviceDto, StartDeviceCaptureDto, UpdateDeviceStatusDto } from '@voxa/shared';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthenticatedUser } from '../auth/auth.service';
 import { DevicesService } from './devices.service';
@@ -16,6 +16,25 @@ export class DevicesController {
   @Get()
   list(@CurrentUser() user: AuthenticatedUser) {
     return this.devicesService.list(user.supabaseUserId);
+  }
+
+  @Post(':id/unpair')
+  unpair(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.devicesService.unpair(user.supabaseUserId, id);
+  }
+
+  @Get(':id/status')
+  getStatus(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.devicesService.getStatus(user.supabaseUserId, id);
+  }
+
+  @Post(':id/capture')
+  startCapture(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: StartDeviceCaptureDto,
+  ) {
+    return this.devicesService.startCapture(user.supabaseUserId, id, dto);
   }
 
   @Get(':id')

@@ -26,6 +26,8 @@ export class QueueService {
     private readonly timelineUpdateQueue: Queue,
     @InjectQueue(QUEUE_NAMES.INSIGHT)
     private readonly insightQueue: Queue,
+    @InjectQueue(QUEUE_NAMES.CLEANUP)
+    private readonly cleanupQueue: Queue,
   ) {}
 
   async enqueueRecordingUploaded(input: {
@@ -95,6 +97,25 @@ export class QueueService {
 
   enqueueInsight(input: AiPipelineQueueInput & { noteId: string; memoryThreadId: string }) {
     return this.enqueue(this.insightQueue, QUEUE_NAMES.INSIGHT, 'insight', input);
+  }
+
+  async enqueueCleanup(input: { recordingId?: string; reason: string; runAt?: Date }) {
+    const delay = input.runAt ? Math.max(0, input.runAt.getTime() - Date.now()) : 0;
+    const job = await this.cleanupQueue.add('cleanup', input, {
+      delay,
+      attempts: 3,
+      backoff: {
+        type: 'exponential',
+        delay: 5000,
+      },
+      removeOnComplete: true,
+      removeOnFail: false,
+    });
+    this.logger.log(
+      `Enqueued job queue=${QUEUE_NAMES.CLEANUP} jobName=cleanup jobId=${job.id} recordingId=${input.recordingId ?? 'batch'} delayMs=${delay}`,
+    );
+
+    return { queue: QUEUE_NAMES.CLEANUP, jobId: job.id, ...input };
   }
 
   private async enqueue<T extends AiPipelineQueueInput>(

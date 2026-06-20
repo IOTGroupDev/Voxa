@@ -1,60 +1,71 @@
-import { AppRouteName } from '../types';
+import { LibraryRoute, MainTabId, SettingsRoute } from '../types';
+import { appConfig } from './config';
 import { TranslationKey } from './i18n';
 
-export type TabId = 'home' | 'timeline' | 'capture' | 'search' | 'settings';
-
 export interface SubRoute {
-  name: AppRouteName;
+  route: LibraryRoute;
   labelKey: TranslationKey;
 }
 
 export interface Tab {
-  id: TabId;
+  id: MainTabId;
   labelKey: TranslationKey;
   icon: string;
-  defaultRoute: AppRouteName;
+  kind: 'screen' | 'action';
   subRoutes?: SubRoute[];
 }
 
 export const TABS: Tab[] = [
   {
-    id: 'home',
+    id: 'today',
     labelKey: 'home',
     icon: '⌂',
-    defaultRoute: 'Home',
+    kind: 'screen',
   },
   {
-    id: 'timeline',
-    labelKey: 'timeline',
-    icon: '◎',
-    defaultRoute: 'Timeline',
+    id: 'memory',
+    labelKey: 'memory',
+    icon: '▦',
+    kind: 'screen',
+    subRoutes: appConfig.enableDeveloperMode
+      ? [
+          { route: { name: 'Entities' }, labelKey: 'objects' },
+          { route: { name: 'Timeline' }, labelKey: 'timeline' },
+          { route: { name: 'Actions' }, labelKey: 'actions' },
+          { route: { name: 'Reminders' }, labelKey: 'reminders' },
+          ...(appConfig.enableMemoryGraph ? [{ route: { name: 'MemoryThreads' } as LibraryRoute, labelKey: 'threads' as TranslationKey }] : []),
+          ...(appConfig.enableInsights ? [{ route: { name: 'Insights' } as LibraryRoute, labelKey: 'insights' as TranslationKey }] : []),
+        ]
+      : undefined,
   },
   {
     id: 'capture',
     labelKey: 'capture',
     icon: '●',
-    defaultRoute: 'Capture',
+    kind: 'action',
   },
   {
-    id: 'search',
+    id: 'ask',
     labelKey: 'search',
     icon: '⊙',
-    defaultRoute: 'Search',
+    kind: 'screen',
   },
   {
     id: 'settings',
     labelKey: 'settings',
     icon: '⚙',
-    defaultRoute: 'Settings',
+    kind: 'screen',
   },
 ];
 
-export function getTabForRoute(route: AppRouteName): Tab {
-  return (
-    TABS.find(
-      (tab) =>
-        tab.defaultRoute === route ||
-        tab.subRoutes?.some((subRoute) => subRoute.name === route),
-    ) ?? TABS[0]
-  );
+export const SETTINGS_ROUTES: Array<{ route: SettingsRoute; labelKey: TranslationKey }> = [
+  { route: { name: 'AccountSettings' }, labelKey: 'settingsAccount' },
+  { route: { name: 'PrivacySettings' }, labelKey: 'settingsPrivacy' },
+  { route: { name: 'LanguageSettings' }, labelKey: 'language' },
+  { route: { name: 'CaptureSettings' }, labelKey: 'settingsRecording' },
+  { route: { name: 'DongleSettings' }, labelKey: 'settingsDongle' },
+];
+
+export function getTabById(id: MainTabId): Tab {
+  return TABS.find((tab) => tab.id === id) ?? TABS[0];
 }

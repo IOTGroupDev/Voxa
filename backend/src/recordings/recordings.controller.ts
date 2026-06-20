@@ -58,6 +58,16 @@ export class RecordingsController {
     return this.recordingsService.list(user.supabaseUserId);
   }
 
+  @Get('result/:id')
+  getResult(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.recordingsService.getResult(user.supabaseUserId, id);
+  }
+
+  @Get(':id/result')
+  getResultByRecordingId(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.recordingsService.getResult(user.supabaseUserId, id);
+  }
+
   @Get(':id')
   get(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.recordingsService.get(user.supabaseUserId, id);

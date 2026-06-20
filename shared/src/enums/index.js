@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AiJobType = exports.DongleRecordingSyncStatus = exports.CaptureAvailability = exports.DeviceStatus = exports.DongleConnectionState = exports.InsightType = exports.AiJobStatus = exports.RecordingStatus = exports.ButtonGesture = exports.CaptureSource = exports.MemoryEventType = void 0;
+exports.AiJobType = exports.DongleRecordingSyncStatus = exports.CaptureAvailability = exports.AiProcessingMode = exports.TranscriptRetentionMode = exports.AudioRetentionMode = exports.DeviceType = exports.DeviceStatus = exports.DongleConnectionState = exports.InsightType = exports.AiJobStatus = exports.RecordingStatus = exports.ButtonGesture = exports.CaptureSource = exports.MemoryEventType = void 0;
 var MemoryEventType;
 (function (MemoryEventType) {
     MemoryEventType["QUICK_NOTE"] = "quick_note";
@@ -21,8 +21,10 @@ var ButtonGesture;
 (function (ButtonGesture) {
     ButtonGesture["SINGLE_PRESS"] = "single_press";
     ButtonGesture["DOUBLE_PRESS"] = "double_press";
+    ButtonGesture["TRIPLE_PRESS"] = "triple_press";
     ButtonGesture["LONG_PRESS"] = "long_press";
     ButtonGesture["PRESS_AND_HOLD"] = "press_and_hold";
+    ButtonGesture["HOLD_AND_SPEAK"] = "hold_and_speak";
 })(ButtonGesture || (exports.ButtonGesture = ButtonGesture = {}));
 var RecordingStatus;
 (function (RecordingStatus) {
@@ -65,11 +67,34 @@ var DongleConnectionState;
 })(DongleConnectionState || (exports.DongleConnectionState = DongleConnectionState = {}));
 var DeviceStatus;
 (function (DeviceStatus) {
-    DeviceStatus["ACTIVE"] = "active";
-    DeviceStatus["INACTIVE"] = "inactive";
-    DeviceStatus["LOST"] = "lost";
-    DeviceStatus["REVOKED"] = "revoked";
+    DeviceStatus["PAIRED"] = "paired";
+    DeviceStatus["DISCONNECTED"] = "disconnected";
+    DeviceStatus["SYNCING"] = "syncing";
+    DeviceStatus["ERROR"] = "error";
 })(DeviceStatus || (exports.DeviceStatus = DeviceStatus = {}));
+var DeviceType;
+(function (DeviceType) {
+    DeviceType["DONGLE"] = "dongle";
+})(DeviceType || (exports.DeviceType = DeviceType = {}));
+var AudioRetentionMode;
+(function (AudioRetentionMode) {
+    AudioRetentionMode["DELETE_AFTER_PROCESSING"] = "delete_after_processing";
+    AudioRetentionMode["KEEP_7_DAYS"] = "keep_7_days";
+    AudioRetentionMode["KEEP_30_DAYS"] = "keep_30_days";
+    AudioRetentionMode["KEEP_FOREVER"] = "keep_forever";
+})(AudioRetentionMode || (exports.AudioRetentionMode = AudioRetentionMode = {}));
+var TranscriptRetentionMode;
+(function (TranscriptRetentionMode) {
+    TranscriptRetentionMode["KEEP_FOREVER"] = "keep_forever";
+    TranscriptRetentionMode["DELETE_AFTER_30_DAYS"] = "delete_after_30_days";
+    TranscriptRetentionMode["DELETE_AFTER_90_DAYS"] = "delete_after_90_days";
+})(TranscriptRetentionMode || (exports.TranscriptRetentionMode = TranscriptRetentionMode = {}));
+var AiProcessingMode;
+(function (AiProcessingMode) {
+    AiProcessingMode["CLOUD"] = "cloud";
+    AiProcessingMode["LOCAL_ONLY"] = "local_only";
+    AiProcessingMode["HYBRID"] = "hybrid";
+})(AiProcessingMode || (exports.AiProcessingMode = AiProcessingMode = {}));
 var CaptureAvailability;
 (function (CaptureAvailability) {
     CaptureAvailability["READY"] = "ready";

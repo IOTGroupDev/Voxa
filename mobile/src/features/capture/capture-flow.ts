@@ -41,7 +41,7 @@ export async function stopLocalRecording(activeCapture: ActiveCapture) {
   await sqliteMemoryStore.saveDraft({
     id: completedRecordingSession.id,
     createdAt: completedRecordingSession.startedAt,
-    title: 'Memory capture',
+    title: 'Voice note',
     localRecordingUri: completedRecordingSession.localUri,
     capturePayload: JSON.stringify(activeCapture.captureSessionDto),
   });
@@ -116,7 +116,7 @@ async function startLocalCapture(input: RunCaptureInput, audioRecorder: AudioRec
   await sqliteMemoryStore.saveDraft({
     id: recordingSession.id,
     createdAt: recordingSession.startedAt,
-    title: 'Unsynced memory capture',
+    title: 'Voice note',
     capturePayload: JSON.stringify(captureSessionDto),
   });
 

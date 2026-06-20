@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Text, View, StyleSheet, TextInput, Pressable } from 'react-native';
 import { DataStateScreen } from '../../app/DataStateScreen';
 import { PanelCard, ActionButton } from '../../app/ui';
@@ -10,13 +10,27 @@ export function AuthScreen() {
   const { t } = useTranslation();
   const sendOtp = useAuthStore((state) => state.sendOtp);
   const verifyOtp = useAuthStore((state) => state.verifyOtp);
-  const authError = useAuthStore((state) => state.error);
-  const [email, setEmail] = useState('');
+  const setAuthEmail = useAuthStore((state) => state.setEmail);
+  const status = useAuthStore((state) => state.status);
+  const email = useAuthStore((state) => state.email);
+  const authError = useAuthStore((state) => state.lastAuthError ?? state.error);
+  const resendAvailableAt = useAuthStore((state) => state.resendAvailableAt);
   const [code, setCode] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [otpRequested, setOtpRequested] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [resendNow, setResendNow] = useState(Date.now());
+  const otpRequested = status === 'otp_sent' || status === 'otp_verifying' || (status === 'auth_error' && Boolean(email));
+  const loading = status === 'otp_sending' || status === 'otp_verifying';
+  const resendDisabled = Boolean(resendAvailableAt && resendAvailableAt > resendNow);
+
+  useEffect(() => {
+    if (!resendAvailableAt || resendAvailableAt <= Date.now()) {
+      return undefined;
+    }
+
+    const interval = setInterval(() => setResendNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [resendAvailableAt]);
 
   const handleSendOtp = async () => {
     setLocalError(null);
@@ -27,13 +41,11 @@ export function AuthScreen() {
       return;
     }
 
-    setLoading(true);
     const success = await sendOtp(email.trim().toLowerCase());
-    setLoading(false);
 
     if (success) {
-      setOtpRequested(true);
       setStatusMessage(t('otpSentToEmail'));
+      setResendNow(Date.now());
     }
   };
 
@@ -46,9 +58,7 @@ export function AuthScreen() {
       return;
     }
 
-    setLoading(true);
-    await verifyOtp(email.trim().toLowerCase(), code.trim());
-    setLoading(false);
+    await verifyOtp(code.trim());
   };
 
   return (
@@ -62,8 +72,8 @@ export function AuthScreen() {
         <TextInput
           value={email}
           onChangeText={(value) => {
-            setEmail(value);
-            if (otpRequested) setOtpRequested(false);
+            setAuthEmail(value);
+            setStatusMessage(null);
           }}
           placeholder={t('emailAddress')}
           placeholderTextColor={palette.muted}
@@ -92,8 +102,13 @@ export function AuthScreen() {
         <View style={styles.switchRow}>
           <Text style={styles.switchText}>{t('otpHint')}</Text>
           {otpRequested ? (
-            <Pressable onPress={handleSendOtp}>
-              <Text style={styles.switchAction}>{t('resendCode')}</Text>
+            <Pressable
+              onPress={handleSendOtp}
+              disabled={resendDisabled}
+            >
+              <Text style={[styles.switchAction, resendDisabled ? styles.switchActionDisabled : null]}>
+                {t('resendCode')}
+              </Text>
             </Pressable>
           ) : null}
         </View>
@@ -135,10 +150,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
+  switchActionDisabled: {
+    opacity: 0.5,
+  },
   status: {
     marginTop: spacing.sm,
     color: palette.success,
     fontSize: 13,
   },
 });
-

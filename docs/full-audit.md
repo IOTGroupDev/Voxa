@@ -1,14 +1,27 @@
-# Voxa Full Technical Audit
+# Voxa Full Technical And Product Audit
 
-Date: 2026-06-18
+Date: 2026-06-19
 
-Scope: local repository audit of `mobile`, `backend`, `shared`, `stt-service`, current navigation changes, database shape, and active capture-to-memory functionality. This is a technical/code audit, not a penetration test or production readiness certification.
+Scope: local repository audit of `mobile`, `backend`, `shared`, `stt-service`, current voice capture flow, Voice Ask, system TTS, navigation/UX structure, database shape, and active capture-to-note processing. This is a technical and product-UX audit, not a penetration test or production readiness certification.
 
 ## Executive Summary
 
-The backend and mobile app currently typecheck. The active product path has been narrowed to the useful MVP: capture audio, upload it, transcribe it, create/update a note, update the timeline, and make the memory searchable. Bottom navigation is now focused on Home, Timeline, Capture, and Search, with Settings available from the top bar.
+Voxa has moved from a generic capture/timeline prototype toward a voice-first AI notes product. The current app model is now closer to the competitive category: `Today`, central `Record`, `Library`, `Ask`, and `Settings`. The core path is:
 
-The database still contains models for a broader assistant surface: devices, actions, reminders, insights, tags, sync items, and legacy AI stages. Not all of them are needed for the current app. The highest-priority remaining work is runtime validation/config validation, transactional capture completion, better offline sync observability, and a deliberate migration plan for unused tables if the product direction stays focused.
+`Record audio -> upload -> local STT -> note/idea/task/reminder detection -> summary -> Library -> Ask/search`
+
+Recent work added:
+
+- `Library` as the unified surface for all saved content.
+- `Ask` with text and voice input.
+- System TTS feedback through `expo-speech`.
+- Persisted language and voice feedback settings.
+- Voice command parsing for `note`, `idea`, `task`, and `reminder`.
+- Local STT service support for both signed storage URLs and direct base64 audio for Voice Ask.
+- Audio deletion from private bucket after summary/note creation.
+- Better API error propagation for failed Voice Ask requests.
+
+The main remaining issue is product completeness: the app has the pieces, but the flow still needs stronger “record -> result -> act” continuity. Ask is still search-backed, not a real answer engine. Library has sections, but results are basic. Settings and main copy have been reduced, but several secondary screens still carry generic empty states and older technical language.
 
 ## Verification Commands
 
@@ -16,228 +29,435 @@ The database still contains models for a broader assistant surface: devices, act
 | --- | --- |
 | `cd backend && npm run typecheck` | Pass |
 | `cd mobile && npm run typecheck` | Pass |
+| `python3 -m py_compile stt-service/main.py` | Pass |
 | `cd shared && npm run typecheck` | Fail: script does not exist |
-| `cd shared && npm run build` | Pass |
-| `cd mobile && npm run web -- --port 8082 --host localhost` | Fail: `web` not included in Expo `platforms` |
-| `cd mobile && npm start -- --port 8082 --host localhost` | Pass: Metro started |
+| `cd shared && npm run build` | Previously passed |
+
+## Current Product Shape
+
+### Mobile Navigation
+
+Current bottom navigation:
+
+- `Today`
+- `Record`
+- `Library`
+- `Ask`
+- `Settings`
+
+`Library` contains subroutes:
+
+- `All`
+- `Notes`
+- `Topics`
+- `Highlights`
+- `To-do`
+- `Reminders`
+
+This is a better mental model than the previous admin-style `Home / Timeline / Search` structure. It matches the category pattern seen in Granola, Voicenotes, TalkNotes, and Plaud: record first, then produce notes, actions, summaries, and queryable memory.
+
+### Capture
+
+The central action is recording. Capture can start from the main tab or Today. Recording state is reflected in UI color and timer. TTS can announce short confirmations.
+
+Current capture processing:
+
+1. Mobile records audio locally.
+2. Mobile uploads audio to private storage.
+3. Backend creates capture session, recording, memory event, and AI job.
+4. Worker calls local HTTP STT.
+5. Summary worker creates/updates Note.
+6. Voice command parser may classify it as note/idea/task/reminder.
+7. Summary worker deletes audio object from storage.
+8. Timeline worker completes recording and attaches thread.
+
+### Voice Commands
+
+Implemented command prefixes:
+
+- `note`, `заметка`, `запиши`, `запомни`
+- `idea`, `идея`, `мысль`
+- `task`, `задача`, `дело`, `todo`, `надо`, `нужно`
+- `reminder`, `напоминание`, `напомни`
+
+Reminder parsing currently supports simple time phrases:
+
+- tomorrow / завтра
+- today / сегодня
+- in N minutes / через N минут
+- in N hours / через N часов
+
+This is useful but still not robust natural language scheduling.
+
+### Ask
+
+Ask now supports:
+
+- text input
+- voice input
+- direct `/api/ask/transcribe` endpoint
+- STT through the local STT service
+- client-side 30-second voice question limit
+- better API error body display
+
+Important limitation: Ask is still backed by keyword search. It is not yet a real AI answer feature with citations/sources.
+
+## Competitive Gap
+
+Observed category patterns:
+
+- Granola emphasizes notes, actions, memory, and staying present.
+- Voicenotes emphasizes record, summary, action items, and Ask AI.
+- TalkNotes emphasizes transforming voice into structured formats.
+- Plaud emphasizes summaries, mind maps, templates, Ask, export/share, and workflow automation.
+
+Voxa has the foundation but is missing these higher-value surfaces:
+
+1. Real Ask answers across notes/transcripts, not just keyword results.
+2. Structured output formats: note, task list, meeting, journal, idea brief.
+3. Post-processing result screen: summary, transcript, tasks, reminders, related topics.
+4. Export/share for notes.
+5. Source-linked answers and references in Ask.
+6. Processing progress that feels deliberate after recording stops.
+7. Templates or “record as” modes before capture.
 
 ## Critical Findings
 
-### 1. Runtime Request Validation Is Missing Across Most Backend DTOs
+### 1. Runtime Request Validation Is Still Missing
 
 Severity: Critical
 
 Evidence:
-- `backend/src/main.ts:5-7` creates the Nest app and sets the global prefix, but does not install a `ValidationPipe`.
-- DTOs in `shared/src/dto/index.ts:17-110` are TypeScript interfaces only. They do not exist at runtime and cannot validate request bodies.
-- Controllers pass `@Body()` directly into services, for example `backend/src/capture/capture.controller.ts:12` and `backend/src/recordings/recordings.controller.ts:17`.
 
-Impact: invalid enum values, malformed dates, missing nested objects, and incorrect payload shapes can reach service/database logic. Some endpoints have local validation, but most do not.
+- `backend/src/main.ts` configures body limits but does not install a global `ValidationPipe`.
+- Most DTOs are TypeScript interfaces, not runtime validation schemas.
+- Controllers accept `@Body()` directly.
+- New `AskService` validates only locally and manually.
 
-Recommended fix: introduce runtime DTO classes or schemas, install a global validation pipe, and reject unknown fields. If keeping shared TypeScript DTOs, pair them with Zod/class-validator schemas.
+Impact: malformed enum values, missing fields, oversized payloads, invalid dates, and unexpected fields can reach service/database logic.
 
-### 2. Storage Misconfiguration Must Fail Explicitly
+Recommended fix:
+
+- Add runtime DTO classes or Zod schemas.
+- Install a global validation pipe.
+- Reject unknown fields.
+- Add route-specific limits for `/ask/transcribe` and normal JSON routes.
+
+### 2. Config Validation Is Missing At Startup
 
 Severity: Critical
 
 Evidence:
-- The storage service now throws when Supabase storage is not configured instead of returning placeholder signed URLs.
-- Startup config validation is still incomplete, so a bad deployment can still boot far enough to fail at first storage use.
 
-Impact: this is safer than the previous placeholder behavior, but operators still get a runtime failure instead of a clear boot-time configuration error.
+- Required env vars are read directly in services.
+- `SUPABASE_URL` is read at module import time in auth.
+- STT/storage/Redis configuration fails only when first used.
 
-Recommended fix: validate required storage env vars at startup and fail the process with a clear message.
+Impact: broken deployments can boot and then fail during user actions.
+
+Recommended fix:
+
+- Add startup validation for `DATABASE_URL`, `DIRECT_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `REDIS_URL`, `STT_HTTP_ENDPOINT`, storage bucket settings.
+- Fail fast with clear logs.
 
 ## High Findings
 
-### 4. Auth/Config Is Evaluated Before Runtime Validation
+### 3. Ask Is Not Yet A Real Ask Feature
 
 Severity: High
 
 Evidence:
-- `backend/src/auth/auth.service.ts:9-13` reads `SUPABASE_URL` and creates the JWKS client at module import time.
-- `backend/src/config/env.ts:1-10` defines a TypeScript interface only; no runtime config loader validates required values.
-- `backend/src/app.module.ts:26` loads `ConfigModule.forRoot`, but no schema or validator is provided.
 
-Impact: a missing/invalid `SUPABASE_URL` can fail during import with an unclear startup error. Required env vars can be absent while the app still boots partially.
+- `Ask` UI now supports voice input.
+- Query still uses existing search flow and returns matching objects.
+- No answer synthesis, source references, or conversational result model exists.
 
-Recommended fix: move config reads behind validated config service access, add startup validation for `DATABASE_URL`, `DIRECT_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `REDIS_URL`.
+Impact: UX promises Ask, but backend behaves like search. This will feel broken once users expect answers.
 
-### 5. Offline Sync Swallows Errors
+Recommended fix:
 
-Severity: High
+- Add `/ask` answer endpoint.
+- Retrieve candidate notes/transcripts/events.
+- Generate answer with references to note ids.
+- Render answer + sources in mobile.
 
-Evidence:
-- `mobile/src/lib/storage/offline-sync.ts:27-54` catches all sync errors and only increments `failed`.
-- The catch block does not persist the error, backoff metadata, terminal failure state, or surface the reason to UI/logging.
-- `mobile/src/features/capture/capture-flow.ts:80-85` catches all sync errors and returns `{ synced: false }` without preserving the failure reason.
-
-Impact: user data may remain unsynced without actionable diagnostics. Debugging upload/auth/storage failures will be difficult.
-
-Recommended fix: store last error per queue item, expose sync status in UI, add retry backoff/attempt caps, and log structured failure details.
-
-### 6. Capture Completion Is Not Transactional
+### 4. Voice Ask Uses Base64 JSON Payloads
 
 Severity: High
 
 Evidence:
-- `backend/src/capture/capture.service.ts:62-118` creates `MemoryEvent`, updates `CaptureSession`, updates `Recording`, creates `AiJob`, and enqueues work as separate operations.
 
-Impact: a failure midway can leave a completed session without a recording status update, a memory event without a queued job, or duplicate/partial state on retries.
+- Mobile reads audio into base64.
+- Backend accepts JSON body with base64 audio.
+- `main.ts` body limit was raised to 12 MB.
 
-Recommended fix: group database writes in a Prisma transaction. Treat queue enqueue as an outbox-style step or make retries idempotent with deterministic job keys.
+Impact: base64 adds memory overhead and can fail on lower-end devices or long questions. It also requires higher JSON body limits globally.
 
-### 7. Mobile API Client Ignores Session Retrieval Errors
+Recommended fix:
 
-Severity: High
+- Prefer multipart upload or direct binary upload for Voice Ask.
+- Scope body size limits per route instead of globally.
+- Keep strict duration limits.
 
-Evidence:
-- `mobile/src/lib/api/default-client.ts:23-26` calls `supabase.auth.getSession()` and ignores `error`.
-- `mobile/src/lib/api/client.ts:20-27` silently omits Authorization when token is missing.
-
-Impact: auth/session failures become anonymous API requests and then generic backend 401s. This obscures the real problem and can cause confusing UX.
-
-Recommended fix: throw or return a typed auth error when session retrieval fails, and centralize handling for expired/missing sessions.
-
-### 8. Upload Reads Entire Audio File Into Memory
+### 5. Capture Completion Is Not Transactional
 
 Severity: High
 
 Evidence:
-- `mobile/src/lib/storage/audio-file-upload.ts:26-34` reads the entire audio file as base64, converts it to a `Uint8Array`, then uploads it.
 
-Impact: longer recordings can spike memory usage, especially on lower-end devices. Base64 conversion also adds overhead.
+- Capture completion still creates/updates `MemoryEvent`, `CaptureSession`, `Recording`, `AiJob`, and queue work in separate operations.
 
-Recommended fix: use a streaming/file upload API supported by Expo/React Native, or enforce a strict max recording duration until streaming upload is implemented.
+Impact: partial failures can leave completed sessions without queued jobs or memory events with incomplete state.
+
+Recommended fix:
+
+- Wrap DB writes in Prisma transaction.
+- Use idempotency keys or outbox pattern for queue enqueue.
+
+### 6. Offline Sync Errors Are Still Weak
+
+Severity: High
+
+Evidence:
+
+- Offline sync returns `{ synced: false }` without detailed persisted failure state.
+- Upload queue does not expose user-visible error reasons.
+
+Impact: local recordings may remain stuck without clear recovery.
+
+Recommended fix:
+
+- Store last error and attempts per queue item.
+- Surface stuck sync state in Library or Settings.
+- Add retry/backoff and manual retry.
+
+### 7. API Client Now Shows Error Bodies But Auth Errors Are Still Blunt
+
+Severity: High
+
+Evidence:
+
+- `mobile/src/lib/api/client.ts` now reads backend error bodies.
+- `default-client.ts` still ignores Supabase `getSession()` errors and sends unauthenticated requests if token is missing.
+
+Impact: users may see backend 401 instead of a clean “session expired” flow.
+
+Recommended fix:
+
+- Throw typed auth errors when session retrieval fails.
+- Centralize logout/session refresh handling.
+
+### 8. Audio Upload Still Reads Entire Files Into Memory
+
+Severity: High
+
+Evidence:
+
+- `mobile/src/lib/storage/audio-file-upload.ts` reads full audio as base64 and converts to `Uint8Array`.
+- Voice Ask also reads audio fully as base64.
+
+Impact: memory spikes on long recordings.
+
+Recommended fix:
+
+- Use streaming/file upload API where possible.
+- Enforce max recording duration until streaming is implemented.
 
 ## Medium Findings
 
-### 9. Legacy AI Stages Remain In Code And Database
+### 9. The AI Pipeline Still Carries Legacy Workers
 
 Severity: Medium
 
 Evidence:
-- New capture and manual event reprocess flow now uses `transcription -> summary -> timeline_update`.
-- Older worker files for classification, action extraction, reminder suggestion, embedding, and insight still exist.
-- Queue service methods for those older stages still exist, but they are no longer reached from the primary capture/reprocess path.
-- Historical `AiJob` rows still include old completed stage types.
 
-Impact: the current app path is simpler and avoids producing extra action/reminder/insight data, but the codebase still carries unused surface area that can confuse future maintenance.
+- Active path is `transcription -> summary -> timeline_update`.
+- Legacy workers still exist for classification, action extraction, reminder suggestion, embedding, insight.
+- Summary worker now creates direct task/reminder records for explicit voice commands.
 
-Recommended fix: keep these legacy workers disabled from the active path for now. If the focused MVP direction is confirmed, remove the unused queues, workers, API surfaces, and database tables through an explicit Prisma migration.
+Impact: future maintainers may not know which pipeline is canonical.
 
-### 10. Web Cannot Be Used For UI Verification
+Recommended fix:
 
-Severity: Medium
+- Document canonical pipeline.
+- Remove or clearly mark disabled workers.
+- Reintroduce action/reminder/insight workers only if they become active and tested.
 
-Evidence:
-- `mobile/app.json:8-11` lists only `ios` and `android`.
-- `npm run web` fails because `web` is not in Expo `platforms`.
-
-Impact: browser-based UI regression checks cannot run without changing app config. This slows navigation/design QA.
-
-Recommended fix: either add web support intentionally or document mobile-only verification and add device/emulator screenshots to the QA workflow.
-
-### 11. No Automated Tests Are Present
+### 10. Ask Audio Error Handling Improved But Needs Runtime Observability
 
 Severity: Medium
 
 Evidence:
-- No repo-local `*.test.*` or `*.spec.*` files were found outside package dependencies.
-- Package scripts only expose typecheck/build/start flows; there are no unit/integration/e2e scripts in `mobile/package.json`, `backend/package.json`, or `shared/package.json`.
 
-Impact: auth, capture, sync, queue, and navigation regressions rely on manual testing.
+- Backend logs Voice Ask transcription start/failure/completion.
+- Client now surfaces error body.
+- There is no request id returned to mobile.
 
-Recommended fix: start with focused tests around capture completion, recording ownership, upload URL failure handling, offline sync retry behavior, and navigation route mapping.
+Impact: support/debug still requires correlating timestamps manually.
 
-### 12. Shared Package Has Build But No Typecheck Script
+Recommended fix:
 
-Severity: Medium
+- Return `requestId` from Ask transcription.
+- Log it on client when failures happen.
 
-Evidence:
-- `shared/package.json` defines only `build`.
-- `cd shared && npm run typecheck` fails with "Missing script".
-
-Impact: root/CI orchestration cannot run a consistent typecheck command across packages.
-
-Recommended fix: add `"typecheck": "tsc --noEmit -p tsconfig.json"` to `shared/package.json`.
-
-### 13. CORS Is Not Configured In Backend Bootstrap
+### 11. Secondary Screens Still Need UX Cleanup
 
 Severity: Medium
 
 Evidence:
-- `backend/src/main.ts:5-7` starts the Nest app without `enableCors`.
 
-Impact: mobile web/debug clients or browser-based tools may fail cross-origin requests. If CORS is later opened broadly without policy, it can become a security issue.
+- Settings and Ask were cleaned up.
+- Timeline/Library subviews still include some generic empty states and technical status text.
+- Timeline edit/delete labels still use older wording in places.
 
-Recommended fix: configure CORS explicitly from environment per deployment target.
+Impact: product now has a better shell but still feels inconsistent deeper in Library.
+
+Recommended fix:
+
+- Rewrite Timeline status labels around user outcomes.
+- Replace generic empty states with actionable commands or remove descriptions.
+- Build a single note/result detail screen.
+
+### 12. No Automated Tests Are Present
+
+Severity: Medium
+
+Evidence:
+
+- No meaningful local test suite exists.
+- Package scripts rely on typecheck/build only.
+
+Impact: capture, queue, Ask, storage cleanup, and navigation regressions are manual.
+
+Recommended fix:
+
+- Add backend unit tests for voice command parser and Ask service.
+- Add integration tests for capture completion and storage deletion.
+- Add mobile component tests for Ask voice state and navigation.
+
+### 13. Shared Package Has No Typecheck Script
+
+Severity: Medium
+
+Evidence:
+
+- `shared/package.json` has build but no typecheck script.
+
+Impact: inconsistent CI commands across packages.
+
+Recommended fix:
+
+- Add `"typecheck": "tsc --noEmit -p tsconfig.json"`.
+
+### 14. CORS Is Still Not Explicitly Configured
+
+Severity: Medium
+
+Evidence:
+
+- `backend/src/main.ts` does not configure CORS.
+
+Impact: browser/debug clients can fail unpredictably. Later broad CORS config may become unsafe.
+
+Recommended fix:
+
+- Add environment-driven CORS policy.
 
 ## Low Findings
 
-### 14. Console Logging In Upload Path
+### 15. Console Logging In Upload Path
 
 Severity: Low
 
 Evidence:
-- `mobile/src/lib/storage/audio-file-upload.ts:19`, `37`, and `47` log upload details.
 
-Impact: logs can become noisy and may leak file/location hints in debug output.
+- Upload path still uses `console.log` / `console.error`.
 
-Recommended fix: replace with structured debug logging behind an environment flag.
+Impact: noisy logs and possible local URI leakage in debug output.
 
-### 15. Device Surface Is Not Needed For Current MVP
+Recommended fix:
+
+- Replace with structured debug logger behind dev flag.
+
+### 16. Device/Dongle Surface Is Still Unclear
 
 Severity: Low
 
 Evidence:
-- Mock dongle startup code has been removed from `mobile/App.tsx`.
-- Mock dongle service/hook/storage files were deleted.
-- Device management is no longer exposed from bottom navigation.
-- Backend database still has `Device` and `DeviceToken` models.
 
-Impact: the current capture experience does not depend on device management. Keeping device models is acceptable if hardware pairing is a near-term feature; otherwise it is extra schema/API weight.
+- Dongle mode exists in Settings.
+- Device management is not part of the main navigation.
+- Real hardware flow is not complete.
 
-Recommended fix: leave hidden until a real hardware flow is implemented, or remove the device API/schema in a dedicated migration if hardware support is out of scope.
+Impact: users can choose a mode whose full workflow is not obvious.
 
-## Current Navigation Refactor Notes
+Recommended fix:
 
-The latest navigation split is structurally sound:
-- `mobile/src/app/navigation.ts` contains tab ids, labels, icons, default routes, and `getTabForRoute`.
-- `mobile/src/app/AppShell.tsx` now imports `TABS` and `getTabForRoute`, and keeps screen rendering in the shell.
-- Bottom navigation is narrowed to Home, Timeline, central Capture, and Search.
-- Settings are reached from the top bar, not from bottom tabs.
+- Hide dongle mode unless hardware feature flag is enabled, or add a real device onboarding flow.
 
-Remaining navigation considerations:
-- Icons are Unicode text symbols. This works, but it is less consistent than a real icon set if the product later adopts one.
+## Database Scope
 
-## Database And Functionality Scope
+Keep for current product:
 
-Keep for the active MVP:
-- `User`, `Recording`, `CaptureSession`, `MemoryEvent`, `Transcript`, `Note`, `DailySummary`, `MemoryThread`, `MemoryThreadEvent`, `AiJob`.
+- `User`
+- `Recording`
+- `CaptureSession`
+- `MemoryEvent`
+- `Transcript`
+- `Note`
+- `MemoryThread`
+- `DailySummary`
+- `ActionItem`
+- `Reminder`
+- `AiJob`
 
-Useful but not required for the first focused release:
-- `SyncItem`, if offline queue observability is implemented.
-- `Device` and `DeviceToken`, only if real hardware pairing is planned soon.
+Questionable but potentially useful:
 
-Hide or remove later if the product remains capture-first:
-- `ActionItem`, `Reminder`, `Insight`, `Tag`, `NoteTag`, and unused AI stages for classification/action/reminder/embedding/insight.
+- `Insight`, if Highlights becomes real.
+- `Tag`, `NoteTag`, if Library needs manual organization.
+- `SyncItem`, if offline observability is implemented.
+- `Device`, if dongle hardware is near-term.
 
-Database cleanup performed:
-- Mock-marked data cleanup script added as `backend/prisma/cleanup-mock-data.sql`.
-- Stale recordings cleanup script added as `backend/prisma/cleanup-stale-recordings.sql`.
-- 17 old `Recording.status = 'created'` rows without linked sessions/events were marked `deleted`.
+Consider removing later:
+
+- unused queue stages and workers if not reactivated
+- mock-era device surfaces if hardware is not planned
+
+## Security And Privacy Notes
+
+Improvements already made:
+
+- Audio files are deleted from private bucket after summary/note creation.
+- Mock STT fallback was removed from active path; STT misconfiguration fails explicitly.
+- `.env`, STT model files, `.venv`, IDE folders, and generated artifacts are ignored.
+
+Remaining risks:
+
+- Base64 Ask audio crosses backend and STT without storage, but still lives in request memory.
+- No retention settings UI exists.
+- No audit log for deletion of audio objects.
+- No per-user privacy settings are implemented.
+
+Recommended next steps:
+
+- Add retention/privacy settings.
+- Add storage deletion audit logging.
+- Avoid long-lived audio payloads in JSON.
+- Add request size and duration enforcement at API boundary.
 
 ## Recommended Remediation Order
 
-1. Add runtime config validation and fail fast for missing storage/STT/Supabase/Redis settings.
-2. Add backend request validation for all write endpoints.
-3. Make capture completion transactional or outbox-driven.
-4. Improve offline sync error persistence and user-visible status.
-5. Add baseline automated tests for capture, recording ownership, storage failure, offline sync, and navigation mapping.
-6. Decide whether Expo web is supported; either enable and test it, or document mobile-only QA.
-7. Remove legacy tables/workers/API surfaces only after confirming they are out of scope.
+1. Implement real Ask answer endpoint with source references.
+2. Add runtime validation and startup config validation.
+3. Replace Voice Ask base64 JSON with multipart/binary upload.
+4. Make capture completion transactional/idempotent.
+5. Add result screen after processing: summary, transcript, tasks, reminders, related topics.
+6. Add export/share for notes.
+7. Add sync observability and retry UI.
+8. Add tests for voice command parser, Ask, capture completion, and storage deletion.
+9. Clean secondary screen copy and status language across Library.
+10. Decide whether device/dongle mode is feature-flagged or fully productized.
 
 ## Residual Risk
 
-This audit did not run the app against real Supabase, Redis, storage, or an emulator/device. It also did not perform a dependency vulnerability scan or a security penetration test. Findings are based on static inspection and available local commands.
+This audit is based on local static inspection and recent local typecheck/compile commands. It did not run a full emulator/device QA pass, real Supabase/Redis/storage integration test, dependency vulnerability audit, or security penetration test. Runtime behavior can still differ from local static verification, especially around Expo audio, mobile file handling, STT container behavior, and network limits.

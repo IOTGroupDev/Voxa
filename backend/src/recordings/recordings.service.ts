@@ -150,17 +150,28 @@ export class RecordingsService {
     this.logger.log(
       `Updating dongle sync status recordingId=${recording.id} deviceId=${device.id} localRecordingId=${dto.localRecordingId} status=${dto.syncStatus}`,
     );
-    return this.prisma.recording.update({
-      where: { id: recording.id },
-      data: {
-        dongleSyncStatus: dto.syncStatus,
-        uploadedAt:
-          dto.syncStatus === DongleRecordingSyncStatus.UPLOADED_TO_BACKEND ||
-          dto.syncStatus === DongleRecordingSyncStatus.CONFIRMED_BY_BACKEND
-            ? new Date()
-            : undefined,
-      },
-    });
+    const [updatedRecording] = await this.prisma.$transaction([
+      this.prisma.recording.update({
+        where: { id: recording.id },
+        data: {
+          dongleSyncStatus: dto.syncStatus,
+          uploadedAt:
+            dto.syncStatus === DongleRecordingSyncStatus.UPLOADED_TO_BACKEND ||
+            dto.syncStatus === DongleRecordingSyncStatus.CONFIRMED_BY_BACKEND
+              ? new Date()
+              : undefined,
+        },
+      }),
+      this.prisma.device.update({
+        where: { id: device.id },
+        data: {
+          status: mapDongleSyncToDeviceStatus(dto.syncStatus),
+          lastSeenAt: new Date(),
+        },
+      }),
+    ]);
+
+    return updatedRecording;
   }
 
   async listDongleRecordings(supabaseUserId: string, deviceHardwareId: string) {
@@ -195,6 +206,71 @@ export class RecordingsService {
 
   get(supabaseUserId: string, id: string) {
     return this.findOwnedRecording(supabaseUserId, id);
+  }
+
+  async getResult(supabaseUserId: string, id: string) {
+    const recording = await this.prisma.recording.findFirst({
+      where: {
+        user: { supabaseUserId },
+        OR: [{ id }, { captureSession: { id } }],
+      },
+      include: {
+        captureSession: true,
+        transcript: true,
+        aiJobs: {
+          orderBy: { createdAt: 'asc' },
+        },
+        memoryEvent: {
+          include: {
+            memoryThread: true,
+            note: {
+              include: {
+                actionItems: true,
+                reminders: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!recording) {
+      throw new NotFoundException('Recording result not found.');
+    }
+
+    const note = recording.memoryEvent?.note ?? null;
+    const status = describeResultStatus(recording);
+    const detectedType = detectResultType(recording.memoryEvent?.type, note?.actionItems ?? [], note?.reminders ?? []);
+    const error = getResultError(recording);
+
+    return {
+      id: recording.id,
+      recordingId: recording.id,
+      captureSessionId: recording.captureSession?.id ?? null,
+      status,
+      error,
+      errorMessage: error,
+      detectedType,
+      summary: note?.summary ?? recording.memoryEvent?.summary ?? null,
+      transcript: recording.transcript?.text ?? null,
+      note,
+      tasks: note?.actionItems ?? [],
+      reminders: note?.reminders ?? [],
+      memoryEvent: recording.memoryEvent,
+      relatedTopics: recording.memoryEvent?.memoryThread ? [recording.memoryEvent.memoryThread] : [],
+      recording: {
+        id: recording.id,
+        status: recording.status,
+        captureSource: recording.captureSource,
+        durationMs: recording.durationMs,
+        mimeType: recording.mimeType,
+        createdAt: recording.createdAt,
+        updatedAt: recording.updatedAt,
+      },
+      aiJobs: recording.aiJobs,
+      createdAt: recording.createdAt,
+      updatedAt: recording.updatedAt,
+    };
   }
 
   async remove(supabaseUserId: string, id: string) {
@@ -235,7 +311,7 @@ export class RecordingsService {
       where: {
         userId,
         hardwareId,
-        status: DeviceStatus.ACTIVE,
+        status: { in: [DeviceStatus.PAIRED, DeviceStatus.SYNCING] },
       },
     });
 
@@ -283,5 +359,101 @@ export class RecordingsService {
     if (typeof value !== 'string' || value.trim().length === 0) {
       throw new BadRequestException(`${fieldName} must be a non-empty string.`);
     }
+  }
+}
+
+type ResultRecording = {
+  status: string;
+  transcript?: { text: string } | null;
+  memoryEvent?: {
+    type: string;
+    processingStatus: string;
+    note?: {
+      actionItems?: Array<unknown>;
+      reminders?: Array<unknown>;
+    } | null;
+  } | null;
+  aiJobs?: Array<{
+    type: string;
+    status: string;
+    lastError?: string | null;
+  }>;
+};
+
+function describeResultStatus(recording: ResultRecording) {
+  const failedJob = recording.aiJobs?.find((job) => job.status === 'failed');
+  const processingStatus = recording.memoryEvent?.processingStatus;
+
+  if (recording.status === 'failed' || processingStatus === 'transcription_failed' || failedJob) {
+    return 'failed';
+  }
+
+  if (recording.status === 'completed' || processingStatus === 'thread_attached') {
+    return 'saved';
+  }
+
+  if (processingStatus === 'summary_created' || hasRunningJob(recording, ['action_extraction', 'reminder_suggestion', 'embedding', 'timeline_update'])) {
+    return 'extracting';
+  }
+
+  if (recording.transcript && (!recording.memoryEvent?.note || hasRunningJob(recording, ['summary', 'classification']))) {
+    return 'summarizing';
+  }
+
+  if (recording.status === 'uploaded' || recording.status === 'processing' || hasRunningJob(recording, ['transcription'])) {
+    return 'transcribing';
+  }
+
+  if (recording.status === 'created' || recording.status === 'recording' || recording.status === 'uploading') {
+    return 'uploading';
+  }
+
+  return 'saved';
+}
+
+function hasRunningJob(recording: ResultRecording, types: string[]) {
+  return Boolean(
+    recording.aiJobs?.some(
+      (job) =>
+        types.includes(job.type) &&
+        (job.status === 'pending' || job.status === 'processing' || job.status === 'retrying'),
+    ),
+  );
+}
+
+function getResultError(recording: ResultRecording) {
+  const failedJob = recording.aiJobs?.find((job) => job.status === 'failed' && job.lastError);
+  return failedJob?.lastError ?? null;
+}
+
+function detectResultType(
+  eventType: string | undefined,
+  actions: Array<unknown>,
+  reminders: Array<unknown>,
+) {
+  if (eventType === 'task' || actions.length > 0) {
+    return 'task';
+  }
+
+  if (eventType === 'idea') {
+    return 'idea';
+  }
+
+  if (reminders.length > 0) {
+    return 'reminder';
+  }
+
+  return 'note';
+}
+
+function mapDongleSyncToDeviceStatus(syncStatus: DongleRecordingSyncStatus): DeviceStatus {
+  switch (syncStatus) {
+    case DongleRecordingSyncStatus.SYNC_FAILED:
+      return DeviceStatus.ERROR;
+    case DongleRecordingSyncStatus.CONFIRMED_BY_BACKEND:
+    case DongleRecordingSyncStatus.SAFE_TO_DELETE_FROM_DEVICE:
+      return DeviceStatus.PAIRED;
+    default:
+      return DeviceStatus.SYNCING;
   }
 }

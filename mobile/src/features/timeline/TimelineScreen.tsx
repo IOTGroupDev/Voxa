@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   CaptureSource,
   DongleRecordingSyncStatus,
@@ -7,6 +7,7 @@ import {
   TimelineItem,
 } from '@voxa/shared';
 import { DataStateScreen } from '../../app/DataStateScreen';
+import { useTranslation } from '../../app/i18n';
 import {
   useDeleteTimelineItemMutation,
   useReprocessEventMutation,
@@ -14,6 +15,7 @@ import {
   useUpdateMemoryEventMutation,
 } from '../../lib/api/hooks';
 import { ActionButton, Badge, EmptyState } from '../../app/ui';
+import { MemoryEditorModal } from '../../components/MemoryEditorModal';
 import { palette, shadow, spacing } from '../../app/theme';
 
 type TimelineStatusTone = 'neutral' | 'working' | 'ready' | 'failed';
@@ -24,7 +26,12 @@ interface TimelineStatus {
   tone: TimelineStatusTone;
 }
 
-export function TimelineScreen() {
+interface TimelineScreenProps {
+  onOpenResult?: (recordingId: string) => void;
+}
+
+export function TimelineScreen({ onOpenResult }: TimelineScreenProps) {
+  const { t } = useTranslation();
   const timeline = useTimelineQuery();
   const reprocessEvent = useReprocessEventMutation();
   const deleteTimelineItem = useDeleteTimelineItemMutation();
@@ -75,7 +82,7 @@ export function TimelineScreen() {
   }
 
   return (
-    <DataStateScreen title="Timeline" isLoading={timeline.isLoading} error={timeline.error}>
+    <DataStateScreen title={t('timeline')} isLoading={timeline.isLoading} error={timeline.error}>
       <View style={styles.list}>
         {items.map((item) => {
           const status = describeTimelineStatus(item);
@@ -113,6 +120,18 @@ export function TimelineScreen() {
               </View>
               {menuItem?.id === item.id ? (
                 <View style={styles.actionMenu}>
+                  {item.recording?.id ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => {
+                        setMenuItem(null);
+                        onOpenResult?.(item.recording?.id ?? '');
+                      }}
+                      style={styles.menuAction}
+                    >
+                      <Text style={styles.menuActionText}>Open result</Text>
+                    </Pressable>
+                  ) : null}
                   <Pressable
                     accessibilityRole="button"
                     onPress={() => openEdit(item)}
@@ -144,29 +163,20 @@ export function TimelineScreen() {
           );
         })}
         {!items.length && !timeline.isLoading ? (
-          <EmptyState title="No memories yet" description="Capture thoughts and they will appear here as the timeline builds." />
+          <EmptyState title="Your memories will appear here after your first recording." />
         ) : null}
       </View>
 
-      <Modal transparent visible={Boolean(editingItem)} animationType="fade" onRequestClose={() => setEditingItem(null)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.editDialog}>
-            <Text style={styles.editTitle}>Edit memory</Text>
-            <TextInput
-              value={editText}
-              onChangeText={setEditText}
-              placeholder="Memory text"
-              placeholderTextColor={palette.muted}
-              multiline
-              style={[styles.editInput, styles.editTextArea]}
-            />
-            <View style={styles.editActions}>
-              <ActionButton title="Cancel" onPress={() => setEditingItem(null)} variant="secondary" />
-              <ActionButton title="Save" onPress={saveEdit} disabled={updateMemoryEvent.isPending} />
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <MemoryEditorModal
+        visible={Boolean(editingItem)}
+        title="Edit memory"
+        value={editText}
+        placeholder="Memory text"
+        isSaving={updateMemoryEvent.isPending}
+        onChangeText={setEditText}
+        onCancel={() => setEditingItem(null)}
+        onSave={saveEdit}
+      />
     </DataStateScreen>
   );
 }
@@ -179,7 +189,7 @@ function describeTimelineStatus(item: TimelineItem): TimelineStatus {
   if (recordingStatus === RecordingStatus.FAILED || processingStatus === 'transcription_failed') {
     return {
       label: 'Failed',
-      detail: 'Transcription did not complete. Retry processing when storage and STT are available.',
+      detail: 'Transcription failed. Retry when recording and transcription services are available.',
       tone: 'failed',
     };
   }
@@ -187,7 +197,7 @@ function describeTimelineStatus(item: TimelineItem): TimelineStatus {
   if (processingStatus === 'transcription_retrying') {
     return {
       label: 'Retrying',
-      detail: 'STT failed once and BullMQ will retry automatically.',
+      detail: 'Transcription failed once and Voxa will retry automatically.',
       tone: 'working',
     };
   }
@@ -219,7 +229,7 @@ function describeTimelineStatus(item: TimelineItem): TimelineStatus {
   if (processingStatus === 'summary_created') {
     return {
       label: 'Summarizing',
-      detail: 'Summary is ready; follow-up extraction and timeline updates may still run.',
+      detail: 'Summary is ready; Voxa is finishing tasks, reminders, and related memory.',
       tone: 'working',
     };
   }
@@ -260,20 +270,20 @@ function describeDongleSyncStatus(status: DongleRecordingSyncStatus): TimelineSt
     case DongleRecordingSyncStatus.TRANSFERRED_TO_PHONE:
       return {
         label: 'On phone',
-        detail: 'Audio reached the phone and is waiting for backend upload.',
+        detail: 'Audio reached the phone and is waiting to sync.',
         tone: 'working',
       };
     case DongleRecordingSyncStatus.UPLOADED_TO_BACKEND:
     case DongleRecordingSyncStatus.CONFIRMED_BY_BACKEND:
       return {
         label: 'Uploaded',
-        detail: 'Dongle recording reached backend processing.',
+        detail: 'Dongle recording is processing.',
         tone: 'working',
       };
     case DongleRecordingSyncStatus.SYNC_FAILED:
       return {
-        label: 'Sync failed',
-        detail: 'Dongle sync stopped before the audio became a ready memory.',
+        label: 'Could not sync',
+        detail: 'Could not sync the dongle recording.',
         tone: 'failed',
       };
     case DongleRecordingSyncStatus.STORED_ON_DEVICE:

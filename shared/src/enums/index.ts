@@ -17,8 +17,10 @@ export enum CaptureSource {
 export enum ButtonGesture {
   SINGLE_PRESS = 'single_press',
   DOUBLE_PRESS = 'double_press',
+  TRIPLE_PRESS = 'triple_press',
   LONG_PRESS = 'long_press',
   PRESS_AND_HOLD = 'press_and_hold',
+  HOLD_AND_SPEAK = 'hold_and_speak',
 }
 
 export enum RecordingStatus {
@@ -61,10 +63,33 @@ export enum DongleConnectionState {
 }
 
 export enum DeviceStatus {
-  ACTIVE = 'active',
-  INACTIVE = 'inactive',
-  LOST = 'lost',
-  REVOKED = 'revoked',
+  PAIRED = 'paired',
+  DISCONNECTED = 'disconnected',
+  SYNCING = 'syncing',
+  ERROR = 'error',
+}
+
+export enum DeviceType {
+  DONGLE = 'dongle',
+}
+
+export enum AudioRetentionMode {
+  DELETE_AFTER_PROCESSING = 'delete_after_processing',
+  KEEP_7_DAYS = 'keep_7_days',
+  KEEP_30_DAYS = 'keep_30_days',
+  KEEP_FOREVER = 'keep_forever',
+}
+
+export enum TranscriptRetentionMode {
+  KEEP_FOREVER = 'keep_forever',
+  DELETE_AFTER_30_DAYS = 'delete_after_30_days',
+  DELETE_AFTER_90_DAYS = 'delete_after_90_days',
+}
+
+export enum AiProcessingMode {
+  CLOUD = 'cloud',
+  LOCAL_ONLY = 'local_only',
+  HYBRID = 'hybrid',
 }
 
 export enum CaptureAvailability {

@@ -1,14 +1,17 @@
 import { create } from 'zustand';
 import { CaptureSource } from '@voxa/shared';
 import type { ActiveCapture } from '../features/capture/capture-flow';
+import { appConfig } from '../app/config';
 
 export type CaptureStartMode = 'phone' | 'airpods_shortcut' | 'dongle';
 
-export const captureModes: Array<{
+type CaptureModeOption = {
   mode: CaptureStartMode;
   title: string;
   subtitle: string;
-}> = [
+};
+
+const allCaptureModes: CaptureModeOption[] = [
   {
     mode: 'phone',
     title: 'Phone button',
@@ -26,6 +29,8 @@ export const captureModes: Array<{
   },
 ];
 
+export const captureModes = allCaptureModes.filter((item) => appConfig.enableDongleMode || item.mode !== 'dongle');
+
 interface CaptureState {
   activeSessionId: string | null;
   activeCapture: ActiveCapture | null;
@@ -33,12 +38,15 @@ interface CaptureState {
   status: string;
   isLoading: boolean;
   isRecording: boolean;
+  pendingAutostartCapture: boolean;
   setActiveSessionId: (sessionId: string | null) => void;
   setActiveCapture: (activeCapture: ActiveCapture | null) => void;
   setSelectedMode: (mode: CaptureStartMode) => void;
   setStatus: (status: string) => void;
   setIsLoading: (isLoading: boolean) => void;
   setIsRecording: (isRecording: boolean) => void;
+  requestAutostartCapture: () => void;
+  consumeAutostartCapture: () => void;
 }
 
 export const useCaptureStore = create<CaptureState>((set) => ({
@@ -48,12 +56,15 @@ export const useCaptureStore = create<CaptureState>((set) => ({
   status: 'Ready for a quiet capture',
   isLoading: false,
   isRecording: false,
+  pendingAutostartCapture: false,
   setActiveSessionId: (sessionId) => set({ activeSessionId: sessionId }),
   setActiveCapture: (activeCapture) => set({ activeCapture }),
   setSelectedMode: (selectedMode) => set({ selectedMode }),
   setStatus: (status) => set({ status }),
   setIsLoading: (isLoading) => set({ isLoading }),
   setIsRecording: (isRecording) => set({ isRecording }),
+  requestAutostartCapture: () => set({ pendingAutostartCapture: true }),
+  consumeAutostartCapture: () => set({ pendingAutostartCapture: false }),
 }));
 
 export function getCaptureSource(mode: CaptureStartMode): CaptureSource {

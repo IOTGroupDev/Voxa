@@ -4,7 +4,9 @@ import { QUEUE_NAMES } from '@voxa/shared';
 import { Job } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueueService } from '../queue/queue.service';
-import { StorageService } from '../storage/storage.service';
+import { normalizeVoiceText, parseVoiceCommand } from '../ai/voice-command';
+import { EntitiesService } from '../entities/entities.service';
+import { PrivacyService } from '../privacy/privacy.service';
 import { AiPipelineJobData } from './transcription.worker';
 
 @Injectable()
@@ -15,7 +17,8 @@ export class SummaryWorker extends WorkerHost {
   constructor(
     private readonly prisma: PrismaService,
     private readonly queueService: QueueService,
-    private readonly storageService: StorageService,
+    private readonly entitiesService: EntitiesService,
+    private readonly privacyService: PrivacyService,
   ) {
     super();
   }
@@ -30,28 +33,37 @@ export class SummaryWorker extends WorkerHost {
       where: { recordingId },
     });
     const body = normalizeText(transcript?.text ?? '');
-    const title = createTitle(body);
-    const summary = createSummary(body);
+    const voiceCommand = parseVoiceCommand(body);
+    const noteBody = voiceCommand?.content ?? body;
+    const title = createTitle(noteBody);
+    const summary = createSummary(noteBody);
+
+    if (voiceCommand) {
+      this.logger.log(
+        `Voice command detected queueJobId=${job.id} memoryEventId=${memoryEventId} kind=${voiceCommand.kind}`,
+      );
+    }
 
     const note = await this.prisma.note.upsert({
       where: { memoryEventId },
       update: {
         title,
         summary,
-        body,
+        body: noteBody,
       },
       create: {
         userId,
         memoryEventId,
         title,
         summary,
-        body,
+        body: noteBody,
       },
     });
 
     await this.prisma.memoryEvent.update({
       where: { id: memoryEventId },
       data: {
+        ...(voiceCommand ? { type: voiceCommand.eventType } : {}),
         noteId: note.id,
         title: note.title,
         summary: note.summary,
@@ -59,11 +71,34 @@ export class SummaryWorker extends WorkerHost {
       },
     });
 
-    const recording = await this.prisma.recording.findUniqueOrThrow({
-      where: { id: recordingId },
-      select: { storagePath: true },
+    const commandResult = voiceCommand
+      ? await this.applyVoiceCommand({
+          userId,
+          noteId: note.id,
+          kind: voiceCommand.kind,
+          reminder: voiceCommand.reminder,
+          title,
+          body: noteBody,
+        })
+      : null;
+
+    await this.entitiesService.extractAndLink({
+      userId,
+      noteId: note.id,
+      transcriptId: transcript?.id,
+      memoryEventId,
+      recordingId,
+      text: [note.title, note.summary, note.body, transcript?.text].filter(Boolean).join('\n'),
     });
-    await this.storageService.deleteAudioObject(recording.storagePath);
+
+    const retentionResult = await this.privacyService.applyAudioRetentionAfterProcessing(userId, recordingId);
+    if (retentionResult.scheduledAt) {
+      await this.queueService.enqueueCleanup({
+        recordingId,
+        reason: 'audio_retention',
+        runAt: retentionResult.scheduledAt,
+      });
+    }
 
     const completedJob = await this.markCompleted(aiJobId);
     const timelineJob = await this.createAiJob(userId, recordingId, memoryEventId, 'timeline_update', {
@@ -77,7 +112,7 @@ export class SummaryWorker extends WorkerHost {
       noteId: note.id,
     });
     this.logger.log(
-      `Summary completed queueJobId=${job.id} aiJobId=${completedJob.id} noteId=${note.id} nextQueueJobId=${queuedJob.jobId}`,
+      `Summary completed queueJobId=${job.id} aiJobId=${completedJob.id} noteId=${note.id} voiceCommand=${voiceCommand?.kind ?? 'none'} actionItemId=${commandResult?.actionItemId ?? 'none'} reminderId=${commandResult?.reminderId ?? 'none'} nextQueueJobId=${queuedJob.jobId}`,
     );
 
     return { noteId: note.id, aiJobId: completedJob.id, queuedJob };
@@ -108,10 +143,60 @@ export class SummaryWorker extends WorkerHost {
       data: { userId, recordingId, memoryEventId, type, status: 'pending', payload },
     });
   }
+
+  private async applyVoiceCommand(input: {
+    userId: string;
+    noteId: string;
+    kind: 'note' | 'idea' | 'task' | 'reminder';
+    title: string;
+    body: string;
+    reminder?: { title: string; remindAt: Date };
+  }) {
+    if (input.kind === 'task') {
+      const existing = await this.prisma.actionItem.findFirst({
+        where: {
+          noteId: input.noteId,
+          source: 'voice_command',
+        },
+      });
+      const action = existing ?? await this.prisma.actionItem.create({
+        data: {
+          userId: input.userId,
+          noteId: input.noteId,
+          title: input.title || input.body,
+          source: 'voice_command',
+        },
+      });
+
+      return { actionItemId: action.id, reminderId: null };
+    }
+
+    if (input.kind === 'reminder') {
+      const existing = await this.prisma.reminder.findFirst({
+        where: {
+          noteId: input.noteId,
+          source: 'voice_command',
+        },
+      });
+      const reminder = existing ?? await this.prisma.reminder.create({
+        data: {
+          userId: input.userId,
+          noteId: input.noteId,
+          title: input.reminder?.title ?? input.title,
+          remindAt: input.reminder?.remindAt ?? new Date(Date.now() + 24 * 60 * 60 * 1000),
+          source: 'voice_command',
+        },
+      });
+
+      return { actionItemId: null, reminderId: reminder.id };
+    }
+
+    return { actionItemId: null, reminderId: null };
+  }
 }
 
 function normalizeText(text: string) {
-  const normalized = text.trim().replace(/\s+/g, ' ');
+  const normalized = normalizeVoiceText(text);
   return normalized.length > 0 ? normalized : 'Audio captured without transcript text.';
 }
 

@@ -1,10 +1,14 @@
 import {
   ButtonGesture,
   CaptureSource,
+  AiProcessingMode,
+  AudioRetentionMode,
   DeviceStatus,
+  DeviceType,
   DongleRecordingSyncStatus,
   MemoryEventType,
   RecordingStatus,
+  TranscriptRetentionMode,
 } from '../enums';
 import { ContextSnapshot, DongleAudioChunkDescriptor, DongleRecordingManifestItem } from '../types';
 
@@ -57,7 +61,9 @@ export interface UpdateMemoryEventDto {
 export interface PairDeviceDto {
   deviceId: string;
   displayName?: string;
+  type?: DeviceType;
   firmwareVersion?: string;
+  batteryLevel?: number;
   storageCapacityBytes?: number;
   storageUsedBytes?: number;
   supportsOfflineCapture?: boolean;
@@ -66,6 +72,30 @@ export interface PairDeviceDto {
 
 export interface UpdateDeviceStatusDto {
   status: DeviceStatus;
+  batteryLevel?: number;
+  firmwareVersion?: string;
+}
+
+export interface StartDeviceCaptureDto {
+  buttonGesture?: ButtonGesture;
+}
+
+export interface UpdatePrivacySettingsDto {
+  audioRetentionMode?: AudioRetentionMode;
+  transcriptRetentionMode?: TranscriptRetentionMode;
+  aiProcessingMode?: AiProcessingMode;
+}
+
+export interface PrivacySettingsResponse {
+  audioRetentionMode: AudioRetentionMode;
+  transcriptRetentionMode: TranscriptRetentionMode;
+  aiProcessingMode: AiProcessingMode;
+  warning?: {
+    message: string;
+    recordingId?: string | null;
+    storagePath: string;
+    failedAt: string;
+  } | null;
 }
 
 export interface RegisterDongleRecordingMetadataDto extends DongleRecordingManifestItem {}
