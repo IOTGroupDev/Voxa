@@ -25,6 +25,12 @@ stt-service/__pycache__
 stt-service/__pycache__/**
 stt-service/models
 stt-service/models/**
+tts-service/.venv
+tts-service/.venv/**
+tts-service/__pycache__
+tts-service/__pycache__/**
+tts-service/models
+tts-service/models/**
 
 shared/src/**/*.d.ts
 shared/src/**/*.js.map

@@ -17,12 +17,6 @@ export interface Tab {
 
 export const TABS: Tab[] = [
   {
-    id: 'today',
-    labelKey: 'home',
-    icon: '⌂',
-    kind: 'screen',
-  },
-  {
     id: 'memory',
     labelKey: 'memory',
     icon: '▦',
@@ -40,14 +34,14 @@ export const TABS: Tab[] = [
   },
   {
     id: 'capture',
-    labelKey: 'capture',
+    labelKey: 'remember',
     icon: '●',
     kind: 'action',
   },
   {
-    id: 'ask',
-    labelKey: 'search',
-    icon: '⊙',
+    id: 'attention',
+    labelKey: 'attention',
+    icon: '!',
     kind: 'screen',
   },
   {

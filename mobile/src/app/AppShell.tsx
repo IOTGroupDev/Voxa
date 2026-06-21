@@ -7,6 +7,7 @@ import { useCaptureToggle } from '../features/capture/useCaptureToggle';
 import { DeviceManagementScreen } from '../features/devices/DeviceManagementScreen';
 import { EntitiesScreen } from '../features/entities/EntitiesScreen';
 import { EntityDetailScreen } from '../features/entities/EntityDetailScreen';
+import { InboxScreen } from '../features/inbox/InboxScreen';
 import { InsightsScreen } from '../features/insights/InsightsScreen';
 import { MemoryThreadsScreen } from '../features/memory-threads/MemoryThreadsScreen';
 import { NoteDetailsScreen } from '../features/notes/NoteDetailsScreen';
@@ -119,8 +120,8 @@ function AuthStack() {
 }
 
 function MainTabs() {
-  const [activeTab, setActiveTab] = useState<MainTabId>('today');
-  const [libraryRoute, setLibraryRoute] = useState<LibraryRoute>({ name: 'Entities' });
+  const [activeTab, setActiveTab] = useState<MainTabId>('memory');
+  const [libraryRoute, setLibraryRoute] = useState<LibraryRoute>({ name: 'MemoryHome' });
   const [settingsRoute, setSettingsRoute] = useState<SettingsRoute>({ name: 'SettingsHome' });
   const [askQuestion, setAskQuestion] = useState<string | undefined>();
   const { t, language } = useTranslation();
@@ -133,7 +134,7 @@ function MainTabs() {
 
   useEffect(() => {
     if (!pendingAutostartCapture) return;
-    setActiveTab('today');
+    setActiveTab('memory');
     if (isCaptureLoading) return;
     consumeAutostartCapture();
     if (isRecording) return;
@@ -142,23 +143,28 @@ function MainTabs() {
   }, [consumeAutostartCapture, isCaptureLoading, isRecording, pendingAutostartCapture, startCapture]);
 
   function navigate(target: MainNavigationTarget) {
-    setActiveTab(target.tab);
     if (target.tab === 'ask') {
+      setActiveTab('ask');
       setAskQuestion(target.question);
+      return;
     }
     if (target.tab === 'memory' && target.route) {
       setLibraryRoute(target.route);
     }
+    if (target.tab === 'memory' && !target.route) {
+      setLibraryRoute({ name: 'MemoryHome' });
+    }
     if (target.tab === 'settings' && target.route) {
       setSettingsRoute(target.route);
     }
+    setActiveTab(target.tab);
   }
 
   async function handleCaptureAction() {
     if (isCaptureLoading) return;
 
     if (selectedMode === 'dongle') {
-      setCaptureStatus('Open Settings -> Dongle to use hardware capture.');
+      setCaptureStatus('Open Settings -> Dongle to remember with hardware.');
       navigate({ tab: 'settings', route: { name: 'DongleSettings' } });
       void speakVoiceFeedback('dongleCapture', language);
       return;
@@ -219,10 +225,10 @@ function MainTabs() {
       ) : null}
 
       <View style={styles.content}>
-        {activeTab === 'today' ? <HomeScreen onNavigate={navigate} /> : null}
         {activeTab === 'memory' ? (
           <LibraryStack route={libraryRoute} onRouteChange={setLibraryRoute} onNavigate={navigate} />
         ) : null}
+        {activeTab === 'attention' ? <InboxScreen onNavigate={navigate} /> : null}
         {activeTab === 'ask' ? <SearchScreen initialQuestion={askQuestion} /> : null}
         {activeTab === 'settings' ? (
           <SettingsStack route={settingsRoute} onRouteChange={setSettingsRoute} onOpenResult={(recordingId) => navigate({ tab: 'memory', route: { name: 'RecordingResult', recordingId } })} />
@@ -259,8 +265,8 @@ function MainTabs() {
               accessibilityRole="button"
               accessibilityLabel={t(tab.labelKey)}
               onPress={() => {
-                if (tab.id === 'ask') {
-                  setAskQuestion(undefined);
+                if (tab.id === 'memory') {
+                  setLibraryRoute({ name: 'MemoryHome' });
                 }
                 setActiveTab(tab.id);
               }}
@@ -299,6 +305,8 @@ function LibraryStack({
   onNavigate: (target: MainNavigationTarget) => void;
 }) {
   switch (route.name) {
+    case 'MemoryHome':
+      return <HomeScreen onNavigate={onNavigate} />;
     case 'RecordingResult':
       return (
         <RecordingResultScreen

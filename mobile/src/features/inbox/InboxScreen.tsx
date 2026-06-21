@@ -31,7 +31,7 @@ export function InboxScreen({ onNavigate }: InboxScreenProps) {
   const failedSyncItems = data?.failedSyncItems ?? [];
 
   return (
-    <DataStateScreen title={t('inbox')} isLoading={inbox.isLoading} error={inbox.error}>
+    <DataStateScreen title={t('attention')} isLoading={inbox.isLoading} error={inbox.error}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.headerRow}>
           <Text style={styles.headerText}>{t('inboxSubtitle')}</Text>
@@ -61,7 +61,7 @@ export function InboxScreen({ onNavigate }: InboxScreenProps) {
               onOpenSource={() => openSuggestionSource(suggestion, onNavigate)}
             />
           ))}
-          {!suggestions.length && !inbox.isLoading ? <EmptyState title="Nothing needs your attention right now." /> : null}
+          {!suggestions.length && !inbox.isLoading ? <EmptyState title={t('needsAttentionEmpty')} /> : null}
         </Section>
 
         {unresolvedTasks.length ? (
@@ -73,7 +73,7 @@ export function InboxScreen({ onNavigate }: InboxScreenProps) {
         ) : null}
 
         {reminderCandidates.length ? (
-          <Section title="Reminder candidates">
+          <Section title={t('reminderCandidates')}>
             {reminderCandidates.map((suggestion) => (
               <SuggestionCard
                 key={suggestion.id}
@@ -111,7 +111,7 @@ export function InboxScreen({ onNavigate }: InboxScreenProps) {
           <Section title={t('failedSyncItems')}>
             {failedSyncItems.map((item, index) => (
               <View key={index} style={styles.rowCard}>
-                <Text style={styles.rowTitle}>Sync issue</Text>
+                <Text style={styles.rowTitle}>{t('couldNotSync')}</Text>
                 <Text style={styles.rowText}>{JSON.stringify(item).slice(0, 220)}</Text>
               </View>
             ))}
@@ -155,12 +155,12 @@ function SuggestionCard({
       <Text style={styles.cardTitle}>{suggestion.title}</Text>
       <Text style={styles.cardBody}>{suggestion.body}</Text>
       <View style={styles.actionRow}>
-        <SmallButton label="Accept" onPress={onAccept} />
+        <SmallButton label="Review" onPress={onAccept} />
         <SmallButton label="Done" onPress={onDone} />
         <SmallButton label="Dismiss" onPress={onDismiss} danger />
       </View>
       <View style={styles.actionRow}>
-        <SmallButton label="Open source" onPress={onOpenSource} secondary />
+        <SmallButton label="Open memory" onPress={onOpenSource} secondary />
         <SmallButton label="Ask about this" onPress={onAsk} secondary />
       </View>
     </View>
@@ -197,7 +197,7 @@ function MemoryRow({ item, onOpen }: { item: TimelineItem; onOpen: () => void })
   return (
     <Pressable accessibilityRole="button" onPress={onOpen} style={({ pressed }) => [styles.rowCard, pressed ? styles.pressed : null]}>
       <Text style={styles.rowTitle}>{item.title ?? item.summary ?? item.note?.summary ?? 'Memory'}</Text>
-      <Text style={styles.rowText}>{item.processingStatus ?? formatDate(item.occurredAt)}</Text>
+      <Text style={styles.rowText}>{formatDate(item.occurredAt)}</Text>
     </Pressable>
   );
 }

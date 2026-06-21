@@ -48,6 +48,13 @@ export interface ExportResponse {
   content: string;
 }
 
+export interface TtsResponse {
+  audioBase64: string;
+  mimeType: string;
+  provider: string;
+  language?: string;
+}
+
 export const voxaApi = {
   getMe() {
     return apiClient.request('/users/me');
@@ -352,6 +359,13 @@ export const voxaApi = {
 
   transcribeAskAudio(dto: { audioBase64: string; mimeType?: string; durationMs?: number }) {
     return apiClient.request<{ text: string; language?: string }>('/ask/transcribe', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  },
+
+  synthesizeSpeech(dto: { text: string; language?: string; speaker?: number }) {
+    return apiClient.request<TtsResponse>('/tts/synthesize', {
       method: 'POST',
       body: JSON.stringify(dto),
     });

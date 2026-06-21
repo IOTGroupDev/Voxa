@@ -10,7 +10,12 @@ export interface EnvConfig {
   llmModel?: string;
   llmTimeoutMs?: string;
   llmRetryAttempts?: string;
+  openAiCompatibleBaseUrl?: string;
+  openAiCompatibleApiKey?: string;
   sttProvider?: string;
   sttHttpEndpoint?: string;
+  ttsProvider?: string;
+  ttsHttpEndpoint?: string;
+  ttsTimeoutMs?: string;
   enableDongleMode?: string;
 }

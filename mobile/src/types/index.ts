@@ -1,6 +1,7 @@
-export type MainTabId = 'today' | 'memory' | 'capture' | 'ask' | 'settings';
+export type MainTabId = 'memory' | 'capture' | 'attention' | 'ask' | 'settings';
 
 export type LibraryRoute =
+  | { name: 'MemoryHome' }
   | { name: 'Timeline' }
   | { name: 'RecordingResult'; recordingId: string | null }
   | { name: 'NoteDetails' }
@@ -20,7 +21,7 @@ export type SettingsRoute =
   | { name: 'DongleSettings' };
 
 export type MainNavigationTarget =
-  | { tab: 'today' }
-  | { tab: 'ask'; question?: string }
   | { tab: 'memory'; route?: LibraryRoute }
+  | { tab: 'attention' }
+  | { tab: 'ask'; question?: string }
   | { tab: 'settings'; route?: SettingsRoute };

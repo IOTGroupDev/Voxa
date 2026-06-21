@@ -17,6 +17,13 @@ interface GeminiGenerateContentResponse {
   };
 }
 
+interface GeminiErrorDetails {
+  code?: number;
+  message: string;
+  status?: string;
+  isUnsupportedLocation: boolean;
+}
+
 @Injectable()
 export class GeminiProvider implements LlmProvider {
   private readonly logger = new Logger(GeminiProvider.name);
@@ -102,10 +109,17 @@ export class GeminiProvider implements LlmProvider {
     const elapsedMs = Date.now() - startedAt;
 
     if (!response.ok) {
-      this.logger.error(
-        `Gemini request failed model=${this.model} attempt=${attempt} status=${response.status} elapsedMs=${elapsedMs} body=${body.slice(0, 500)}`,
-      );
-      throw new GeminiHttpError(response.status, parseGeminiError(body));
+      const details = parseGeminiError(body);
+      if (details.isUnsupportedLocation) {
+        this.logger.error(
+          `Gemini request blocked by API location policy model=${this.model} attempt=${attempt} status=${response.status} apiStatus=${details.status ?? 'unknown'} elapsedMs=${elapsedMs}`,
+        );
+      } else {
+        this.logger.error(
+          `Gemini request failed model=${this.model} attempt=${attempt} status=${response.status} apiStatus=${details.status ?? 'unknown'} elapsedMs=${elapsedMs} body=${body.slice(0, 500)}`,
+        );
+      }
+      throw new GeminiHttpError(response.status, details);
     }
 
     const payload = parseGeminiResponse(body);
@@ -125,9 +139,9 @@ export class GeminiProvider implements LlmProvider {
 class GeminiHttpError extends Error {
   constructor(
     readonly status: number,
-    message: string,
+    readonly details: GeminiErrorDetails,
   ) {
-    super(message);
+    super(details.message);
   }
 }
 
@@ -147,16 +161,30 @@ function extractGeminiAnswer(payload: GeminiGenerateContentResponse) {
     .trim();
 }
 
-function parseGeminiError(body: string) {
+function parseGeminiError(body: string): GeminiErrorDetails {
   if (!body.trim()) {
-    return 'Gemini API returned an error.';
+    return {
+      message: 'Gemini API returned an error.',
+      isUnsupportedLocation: false,
+    };
   }
 
   try {
     const payload = JSON.parse(body) as GeminiGenerateContentResponse;
-    return payload.error?.message ?? body.slice(0, 300);
+    const message = payload.error?.message ?? body.slice(0, 300);
+    const status = payload.error?.status;
+    return {
+      code: payload.error?.code,
+      message,
+      status,
+      isUnsupportedLocation:
+        status === 'FAILED_PRECONDITION' && /location is not supported|unsupported.*location/i.test(message),
+    };
   } catch {
-    return body.slice(0, 300);
+    return {
+      message: body.slice(0, 300),
+      isUnsupportedLocation: /location is not supported|unsupported.*location/i.test(body),
+    };
   }
 }
 
@@ -178,6 +206,12 @@ function isRetryableError(error: unknown) {
 
 function normalizeGeminiError(error: unknown) {
   if (error instanceof GeminiHttpError) {
+    if (error.details.isUnsupportedLocation) {
+      return new ServiceUnavailableException(
+        'Gemini API is not available from the current backend location. Run Voxa backend from a supported region or configure another LLM provider.',
+      );
+    }
+
     return new ServiceUnavailableException(`Gemini API error: ${error.message}`);
   }
 

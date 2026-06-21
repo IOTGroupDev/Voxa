@@ -23,6 +23,7 @@ import { StorageModule } from './storage/storage.module';
 import { TimelineModule } from './timeline/timeline.module';
 import { TodayModule } from './today/today.module';
 import { TranscriptsModule } from './transcripts/transcripts.module';
+import { TtsModule } from './tts/tts.module';
 import { UsersModule } from './users/users.module';
 import { WorkersModule } from './workers/workers.module';
 
@@ -44,6 +45,7 @@ import { WorkersModule } from './workers/workers.module';
     RemindersModule,
     TimelineModule,
     TodayModule,
+    TtsModule,
     SearchModule,
     AskModule,
     AiModule,
