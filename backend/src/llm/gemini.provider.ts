@@ -1,5 +1,6 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { GenerateAnswerInput, GenerateAnswerResult, LlmProvider } from './llm-provider.interface';
+import { ProviderRegionBlockedError, EmptyAiAnswerError, MalformedJsonError } from './errors';
 
 interface GeminiGenerateContentResponse {
   candidates?: Array<{
@@ -28,12 +29,12 @@ interface GeminiErrorDetails {
 export class GeminiProvider implements LlmProvider {
   private readonly logger = new Logger(GeminiProvider.name);
   private readonly apiKey = process.env.GEMINI_API_KEY?.trim();
-  private readonly model = process.env.LLM_MODEL?.trim() || 'gemini-2.5-flash';
+  private readonly model = process.env.GEMINI_MODEL?.trim() || 'gemini-2.5-flash';
   private readonly timeoutMs = Number(process.env.LLM_TIMEOUT_MS ?? 30_000);
   private readonly maxAttempts = Number(process.env.LLM_RETRY_ATTEMPTS ?? 2) + 1;
 
   constructor() {
-    this.logger.log('Gemini provider initialized');
+    this.logger.log(`Gemini provider initialized model=${this.model}`);
   }
 
   async generateAnswer(input: GenerateAnswerInput): Promise<GenerateAnswerResult> {
@@ -114,6 +115,8 @@ export class GeminiProvider implements LlmProvider {
         this.logger.error(
           `Gemini request blocked by API location policy model=${this.model} attempt=${attempt} status=${response.status} apiStatus=${details.status ?? 'unknown'} elapsedMs=${elapsedMs}`,
         );
+        // region blocked -> do not retry this provider
+        throw new ProviderRegionBlockedError(details.message);
       } else {
         this.logger.error(
           `Gemini request failed model=${this.model} attempt=${attempt} status=${response.status} apiStatus=${details.status ?? 'unknown'} elapsedMs=${elapsedMs} body=${body.slice(0, 500)}`,
@@ -122,13 +125,20 @@ export class GeminiProvider implements LlmProvider {
       throw new GeminiHttpError(response.status, details);
     }
 
-    const payload = parseGeminiResponse(body);
+    let payload: GeminiGenerateContentResponse;
+    try {
+      payload = parseGeminiResponse(body);
+    } catch (err) {
+      this.logger.error(`Gemini returned malformed JSON model=${this.model} attempt=${attempt} elapsedMs=${elapsedMs} responseSize=${body.length}`);
+      throw new MalformedJsonError();
+    }
+
     const answer = extractGeminiAnswer(payload);
     if (!answer) {
       this.logger.error(
-        `Gemini returned empty answer model=${this.model} attempt=${attempt} elapsedMs=${elapsedMs} body=${body.slice(0, 500)}`,
+        `Gemini returned empty answer model=${this.model} attempt=${attempt} elapsedMs=${elapsedMs} responseSize=${body.length}`,
       );
-      throw new ServiceUnavailableException('Gemini returned an empty answer.');
+      throw new EmptyAiAnswerError();
     }
 
     this.logger.log(`Gemini answer generated model=${this.model} attempt=${attempt} elapsedMs=${elapsedMs}`);

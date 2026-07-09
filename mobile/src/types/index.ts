@@ -1,4 +1,4 @@
-export type MainTabId = 'memory' | 'capture' | 'attention' | 'ask' | 'settings';
+export type MainTabId = 'memory' | 'notes' | 'capture' | 'attention' | 'ask' | 'settings';
 
 export type LibraryRoute =
   | { name: 'MemoryHome' }
@@ -24,4 +24,5 @@ export type MainNavigationTarget =
   | { tab: 'memory'; route?: LibraryRoute }
   | { tab: 'attention' }
   | { tab: 'ask'; question?: string }
+  | { tab: 'notes' }
   | { tab: 'settings'; route?: SettingsRoute };

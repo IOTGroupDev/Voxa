@@ -66,6 +66,15 @@ export function AppShell() {
   useEffect(() => {
     function handleDeepLink(url: string | null) {
       if (!url || !isCaptureAutostartUrl(url)) return;
+      // Ignore Siri-initiated links to avoid double-triggering system Siri
+      try {
+        const lower = url.toLowerCase();
+        if (lower.includes('siri') || new URL(url).searchParams.get('source') === 'siri') {
+          return;
+        }
+      } catch {
+        // fallthrough
+      }
       const now = Date.now();
       const last = lastAutostartUrlRef.current;
       if (last?.url === url && now - last.handledAt < 1500) return;
@@ -172,7 +181,8 @@ function MainTabs() {
 
     const result = await toggleCapture(getCaptureSource(selectedMode));
     if (result.phase === 'stopped' && result.recordingId) {
-      navigate({ tab: 'memory', route: { name: 'RecordingResult', recordingId: result.recordingId } });
+      // Auto-save: skip the intermediate RecordingResult screen and go back to Memory home
+      navigate({ tab: 'memory', route: { name: 'MemoryHome' } });
     }
   }
 
@@ -228,6 +238,7 @@ function MainTabs() {
         {activeTab === 'memory' ? (
           <LibraryStack route={libraryRoute} onRouteChange={setLibraryRoute} onNavigate={navigate} />
         ) : null}
+        {activeTab === 'notes' ? <NoteDetailsScreen /> : null}
         {activeTab === 'attention' ? <InboxScreen onNavigate={navigate} /> : null}
         {activeTab === 'ask' ? <SearchScreen initialQuestion={askQuestion} /> : null}
         {activeTab === 'settings' ? (

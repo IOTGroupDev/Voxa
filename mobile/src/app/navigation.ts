@@ -33,6 +33,12 @@ export const TABS: Tab[] = [
       : undefined,
   },
   {
+    id: 'notes',
+    labelKey: 'notes',
+    icon: '✎',
+    kind: 'screen',
+  },
+  {
     id: 'capture',
     labelKey: 'remember',
     icon: '●',

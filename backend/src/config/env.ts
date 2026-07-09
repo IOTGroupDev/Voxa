@@ -12,6 +12,14 @@ export interface EnvConfig {
   llmRetryAttempts?: string;
   openAiCompatibleBaseUrl?: string;
   openAiCompatibleApiKey?: string;
+  // Provider-specific configuration
+  geminiModel?: string;
+  deepseekApiKey?: string;
+  deepseekBaseUrl?: string;
+  deepseekModel?: string;
+  openaiApiKey?: string;
+  openaiModel?: string;
+  llmProviderOrder?: string;
   sttProvider?: string;
   sttHttpEndpoint?: string;
   ttsProvider?: string;

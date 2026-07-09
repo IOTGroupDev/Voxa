@@ -112,6 +112,13 @@ async function startLocalCapture(input: RunCaptureInput, audioRecorder: AudioRec
     },
   };
 
+  // If capture originates from an AirPods/Siri shortcut, wait briefly
+  // to avoid recording Siri's voice (system prompt) at the start.
+  if (input.source === CaptureSource.AIRPODS_SHORTCUT) {
+    const SIRI_GUARD_MS = 800;
+    await new Promise((resolve) => setTimeout(resolve, SIRI_GUARD_MS));
+  }
+
   const recordingSession = await audioRecorder.start();
   await sqliteMemoryStore.saveDraft({
     id: recordingSession.id,
