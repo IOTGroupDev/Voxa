@@ -81,7 +81,11 @@ export function useCaptureToggle() {
         buttonGesture: options.buttonGesture ?? activeCapture.captureSessionDto.buttonGesture,
         deviceId: options.deviceId ?? activeCapture.captureSessionDto.deviceId,
       });
-      setStatus(result.synced ? 'Saved and sent for processing' : 'Saved on this phone. Sync will retry');
+      setStatus(
+        result.synced
+          ? 'Saved and sent for processing'
+          : `Saved on this phone. Sync will retry${result.error ? `: ${result.error}` : ''}`,
+      );
       void speakVoiceFeedback(result.synced ? 'recordingSynced' : 'recordingSavedLocally', language);
       await refreshMemoryLists(queryClient);
       const syncedResult = result as {

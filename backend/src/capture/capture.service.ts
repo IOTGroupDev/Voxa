@@ -1,10 +1,22 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
+  ButtonGesture,
   CompleteCaptureSessionDto,
+  CaptureSource,
   CreateCaptureSessionDto,
   MemoryEventType,
 } from '@voxa/shared';
 import { Prisma } from '@prisma/client';
+import {
+  assertEnumValue,
+  assertIsoDateString,
+  assertOptionalEnumValue,
+  assertOptionalNonNegativeInteger,
+  assertOptionalNumber,
+  assertOptionalString,
+  assertPlainObject,
+  assertRequiredString,
+} from '../common/body-validation';
 import { PrismaService } from '../prisma/prisma.service';
 import { QueueService } from '../queue/queue.service';
 
@@ -18,6 +30,7 @@ export class CaptureService {
   ) {}
 
   async createSession(supabaseUserId: string, email: string | undefined, dto: CreateCaptureSessionDto) {
+    this.validateCreateSession(dto);
     const user = await this.upsertUser(supabaseUserId, email);
     this.logger.log(
       `Creating capture session userId=${user.id} source=${dto.source} deviceId=${dto.deviceId ?? 'none'}`,
@@ -56,6 +69,7 @@ export class CaptureService {
   }
 
   async completeSession(supabaseUserId: string, id: string, dto: CompleteCaptureSessionDto) {
+    this.validateCompleteSession(dto);
     const captureSession = await this.findOwnedSession(supabaseUserId, id);
     this.logger.log(
       `Completing capture session sessionId=${captureSession.id} recordingId=${dto.recordingId}`,
@@ -71,53 +85,57 @@ export class CaptureService {
       throw new NotFoundException('Recording not found.');
     }
 
-    const memoryEvent = await this.prisma.memoryEvent.create({
-      data: {
-        userId: captureSession.userId,
-        deviceId: captureSession.deviceId,
-        recordingId: recording.id,
-        contextSnapshotId: captureSession.contextSnapshotId,
-        type: this.mapGestureToEventType(captureSession.buttonGesture),
-        captureSource: captureSession.source,
-        buttonGesture: captureSession.buttonGesture,
-        occurredAt: captureSession.startedAt,
-      },
-    });
+    const { memoryEvent, updatedSession, aiJob } = await this.prisma.$transaction(async (tx) => {
+      const memoryEvent = await tx.memoryEvent.create({
+        data: {
+          userId: captureSession.userId,
+          deviceId: captureSession.deviceId,
+          recordingId: recording.id,
+          contextSnapshotId: captureSession.contextSnapshotId,
+          type: this.mapGestureToEventType(captureSession.buttonGesture),
+          captureSource: captureSession.source,
+          buttonGesture: captureSession.buttonGesture,
+          occurredAt: captureSession.startedAt,
+        },
+      });
 
-    const updatedSession = await this.prisma.captureSession.update({
-      where: { id: captureSession.id },
-      data: {
-        status: 'completed',
-        completedAt: new Date(),
-        recordingId: recording.id,
-      },
-      include: {
-        contextSnapshot: true,
-        recording: true,
-      },
-    });
+      const updatedSession = await tx.captureSession.update({
+        where: { id: captureSession.id },
+        data: {
+          status: 'completed',
+          completedAt: new Date(),
+          recordingId: recording.id,
+        },
+        include: {
+          contextSnapshot: true,
+          recording: true,
+        },
+      });
 
-    await this.prisma.recording.update({
-      where: { id: recording.id },
-      data: {
-        durationMs: dto.durationMs,
-        status: 'uploaded',
-        uploadedAt: new Date(),
-      },
-    });
+      await tx.recording.update({
+        where: { id: recording.id },
+        data: {
+          durationMs: dto.durationMs,
+          status: 'uploaded',
+          uploadedAt: new Date(),
+        },
+      });
 
-    const aiJob = await this.prisma.aiJob.create({
-      data: {
-        userId: captureSession.userId,
-        recordingId: recording.id,
-        memoryEventId: memoryEvent.id,
-        type: 'transcription',
-        status: 'pending',
-        payload: this.toJson({
-          source: 'capture_session_completed',
-          captureSessionId: captureSession.id,
-        }),
-      },
+      const aiJob = await tx.aiJob.create({
+        data: {
+          userId: captureSession.userId,
+          recordingId: recording.id,
+          memoryEventId: memoryEvent.id,
+          type: 'transcription',
+          status: 'pending',
+          payload: this.toJson({
+            source: 'capture_session_completed',
+            captureSessionId: captureSession.id,
+          }),
+        },
+      });
+
+      return { memoryEvent, updatedSession, aiJob };
     });
 
     const queuedJob = await this.queueService.enqueueRecordingUploaded({
@@ -187,5 +205,36 @@ export class CaptureService {
 
   private toJson(value: unknown): Prisma.InputJsonValue | undefined {
     return value === undefined ? undefined : (value as Prisma.InputJsonValue);
+  }
+
+  private validateCreateSession(dto: CreateCaptureSessionDto) {
+    assertPlainObject(dto, 'CreateCaptureSessionDto');
+    assertEnumValue(CaptureSource, dto.source, 'source');
+    assertOptionalEnumValue(ButtonGesture, dto.buttonGesture, 'buttonGesture');
+    assertOptionalString(dto.deviceId, 'deviceId');
+    assertPlainObject(dto.contextSnapshot, 'contextSnapshot');
+    assertIsoDateString(dto.contextSnapshot.timestamp, 'contextSnapshot.timestamp');
+    assertRequiredString(dto.contextSnapshot.timezone, 'contextSnapshot.timezone');
+    assertEnumValue(CaptureSource, dto.contextSnapshot.captureSource, 'contextSnapshot.captureSource');
+    assertOptionalEnumValue(ButtonGesture, dto.contextSnapshot.buttonGesture, 'contextSnapshot.buttonGesture');
+    assertOptionalString(dto.contextSnapshot.nearbyDeviceId, 'contextSnapshot.nearbyDeviceId');
+    assertOptionalString(dto.contextSnapshot.userSelectedProject, 'contextSnapshot.userSelectedProject');
+
+    if (dto.contextSnapshot.location !== undefined) {
+      assertPlainObject(dto.contextSnapshot.location, 'contextSnapshot.location');
+      assertOptionalNumber(dto.contextSnapshot.location.accuracyMeters, 'contextSnapshot.location.accuracyMeters');
+      if (!Number.isFinite(dto.contextSnapshot.location.latitude)) {
+        throw new BadRequestException('contextSnapshot.location.latitude must be a number.');
+      }
+      if (!Number.isFinite(dto.contextSnapshot.location.longitude)) {
+        throw new BadRequestException('contextSnapshot.location.longitude must be a number.');
+      }
+    }
+  }
+
+  private validateCompleteSession(dto: CompleteCaptureSessionDto) {
+    assertPlainObject(dto, 'CompleteCaptureSessionDto');
+    assertRequiredString(dto.recordingId, 'recordingId');
+    assertOptionalNonNegativeInteger(dto.durationMs, 'durationMs');
   }
 }

@@ -91,10 +91,11 @@ export async function syncCompletedCapture(
       upload,
       completedCapture,
     };
-  } catch {
+  } catch (error) {
     return {
       synced: false,
       recordingSession: completedRecordingSession,
+      error: error instanceof Error ? error.message : 'Unknown capture sync error',
     };
   }
 }

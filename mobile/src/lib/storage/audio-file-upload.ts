@@ -16,35 +16,19 @@ export async function uploadAudioFileToSignedUrl(
     target: SignedUploadTarget,
     mimeType = 'audio/mp4',
 ): Promise<AudioFileUploadResult> {
-  console.log('[upload] start', localUri.slice(-40));
-
   if (!target.signedUrl) {
     return { uploaded: false, skipped: true };
   }
 
-  try {
-    const base64 = await FileSystem.readAsStringAsync(localUri, {
-      encoding: 'base64' as any,
-    });
-    const binary = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+  const response = await FileSystem.uploadAsync(target.signedUrl, localUri, {
+    httpMethod: 'PUT',
+    uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+    headers: { 'content-type': mimeType },
+  });
 
-    const response = await fetch(target.signedUrl, {
-      method: 'PUT',
-      headers: { 'content-type': mimeType },
-      body: binary,
-    });
-
-    console.log('[upload] status:', response.status);
-
-    if (!response.ok) {
-      const body = await response.text();
-      console.error('[upload] error body:', body);
-      throw new Error(`Audio upload failed with status ${response.status}`);
-    }
-
-    return { uploaded: true, skipped: false, status: response.status };
-  } catch (error) {
-    console.error('[upload] error:', error);
-    throw error;
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(`Audio upload failed with status ${response.status}`);
   }
+
+  return { uploaded: true, skipped: false, status: response.status };
 }

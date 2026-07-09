@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Session } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase/client';
+import { clearSupabaseAuthStorage, supabase } from '../lib/supabase/client';
+import { getErrorMessage, isInvalidRefreshTokenError, isRetryableAuthFetchError } from '../lib/supabase/auth-errors';
 
 export type AuthStatus =
   | 'checking_session'
@@ -45,15 +46,17 @@ export const useAuthStore = create<AuthState>((set) => ({
   error: null,
   initializeSession: async () => {
     set({ status: 'checking_session', loading: true, error: null, lastAuthError: null });
-    const { data, error } = await supabase.auth.getSession();
+    let result: Awaited<ReturnType<typeof supabase.auth.getSession>>;
+    try {
+      result = await supabase.auth.getSession();
+    } catch (error) {
+      await handleSessionRestoreError(error, set);
+      return;
+    }
+
+    const { data, error } = result;
     if (error) {
-      set({
-        session: null,
-        status: 'auth_error',
-        loading: false,
-        error: 'Could not restore your session. Please sign in again.',
-        lastAuthError: error.message,
-      });
+      await handleSessionRestoreError(error, set);
       return;
     }
 
@@ -89,7 +92,22 @@ export const useAuthStore = create<AuthState>((set) => ({
       error: null,
       lastAuthError: null,
     });
-    const { error } = await supabase.auth.signInWithOtp({ email: normalizedEmail });
+    let result: Awaited<ReturnType<typeof supabase.auth.signInWithOtp>>;
+    try {
+      result = await supabase.auth.signInWithOtp({ email: normalizedEmail });
+    } catch (error) {
+      set({
+        status: 'auth_error',
+        loading: false,
+        error: isRetryableAuthFetchError(error)
+          ? 'Could not reach Supabase. Please try again shortly.'
+          : getErrorMessage(error),
+        lastAuthError: getErrorMessage(error),
+      });
+      return false;
+    }
+
+    const { error } = result;
 
     if (error) {
       set({
@@ -119,7 +137,22 @@ export const useAuthStore = create<AuthState>((set) => ({
       lastAuthError: null,
       verificationAttempts: state.verificationAttempts + 1,
     }));
-    const { data, error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
+    let result: Awaited<ReturnType<typeof supabase.auth.verifyOtp>>;
+    try {
+      result = await supabase.auth.verifyOtp({ email, token, type: 'email' });
+    } catch (error) {
+      set({
+        status: 'auth_error',
+        loading: false,
+        error: isRetryableAuthFetchError(error)
+          ? 'Could not reach Supabase. Please try again shortly.'
+          : getErrorMessage(error),
+        lastAuthError: getErrorMessage(error),
+      });
+      return;
+    }
+
+    const { data, error } = result;
 
     if (error) {
       set({
@@ -141,7 +174,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
   setOnboardingCompleted: (onboardingCompleted) => set({ onboardingCompleted }),
   signOut: async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      await clearSupabaseAuthStorage();
+    }
     set({
       session: null,
       status: 'signed_out',
@@ -152,3 +188,30 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
   },
 }));
+
+async function handleSessionRestoreError(
+  error: unknown,
+  set: Parameters<typeof useAuthStore.setState>[0],
+) {
+  if (isInvalidRefreshTokenError(error)) {
+    await clearSupabaseAuthStorage();
+    set({
+      session: null,
+      status: 'signed_out_expired',
+      loading: false,
+      error: 'Your session expired. Please sign in again.',
+      lastAuthError: getErrorMessage(error),
+    });
+    return;
+  }
+
+  set({
+    session: null,
+    status: isRetryableAuthFetchError(error) ? 'signed_out' : 'auth_error',
+    loading: false,
+    error: isRetryableAuthFetchError(error)
+      ? 'Could not reach Supabase. Please try again shortly.'
+      : 'Could not restore your session. Please sign in again.',
+    lastAuthError: getErrorMessage(error),
+  });
+}

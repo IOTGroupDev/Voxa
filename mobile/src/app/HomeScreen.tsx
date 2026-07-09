@@ -19,7 +19,7 @@ interface HomeScreenProps {
 }
 
 export function HomeScreen({ onNavigate }: HomeScreenProps) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const timeline = useTimelineQuery();
   const inbox = useInboxQuery();
   const entities = useEntitiesQuery();
@@ -40,6 +40,13 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
   const ideaCount = countMemoriesByType(timelineItems, 'idea');
   const decisionCount = countMemoriesByType(timelineItems, 'decision');
   const conversationCount = countMemoriesByType(timelineItems, 'conversation') || recentMemories.length;
+  const quietSummary = createQuietSummary({
+    language,
+    conversationCount,
+    ideaCount,
+    decisionCount,
+    taskCount: unresolvedTasks.length,
+  });
   const isLoading = timeline.isLoading || entities.isLoading || inbox.isLoading;
   const error = timeline.error || entities.error || inbox.error;
 
@@ -86,12 +93,7 @@ export function HomeScreen({ onNavigate }: HomeScreenProps) {
           </Pressable>
         </View>
 
-        <View style={styles.statGrid}>
-          <MemoryStat value={conversationCount} label={t('conversationsRemembered')} />
-          <MemoryStat value={unresolvedTasks.length} label={t('tasksFound')} />
-          <MemoryStat value={ideaCount} label={t('ideasSaved')} />
-          <MemoryStat value={decisionCount} label={t('decisionsCaptured')} />
-        </View>
+        <Text style={styles.quietSummary}>{quietSummary}</Text>
 
         <DailyDigestPreview
           digest={todayDigest.data}
@@ -181,15 +183,6 @@ function SectionHeader({ title, action }: { title: string; action?: string }) {
   );
 }
 
-function MemoryStat({ value, label }: { value: number; label: string }) {
-  return (
-    <View style={styles.statItem}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
 function DailyDigestPreview({
   digest,
   todayDate,
@@ -257,6 +250,71 @@ function countMemoriesByType(items: TimelineItem[], type: string) {
     const haystack = `${item.type ?? ''} ${item.title ?? ''} ${item.summary ?? ''}`.toLowerCase();
     return haystack.includes(type);
   }).length;
+}
+
+function createQuietSummary(input: {
+  language: 'en' | 'ru' | 'es';
+  conversationCount: number;
+  ideaCount: number;
+  decisionCount: number;
+  taskCount: number;
+}) {
+  const fragments: string[] = [];
+  const copy = quietSummaryCopy[input.language] ?? quietSummaryCopy.en;
+
+  if (input.conversationCount > 0) {
+    fragments.push(copy.conversations(input.conversationCount));
+  }
+  if (input.ideaCount > 0) {
+    fragments.push(copy.ideas(input.ideaCount));
+  }
+  if (input.decisionCount > 0) {
+    fragments.push(copy.decisions(input.decisionCount));
+  }
+  if (input.taskCount > 0) {
+    fragments.push(copy.followUps(input.taskCount));
+  }
+
+  if (fragments.length === 0) {
+    return copy.empty;
+  }
+
+  return `${copy.prefix}: ${fragments.join(', ')}.`;
+}
+
+const quietSummaryCopy = {
+  en: {
+    prefix: 'Recent context',
+    empty: 'Recent context will appear here as Voxa understands your memories.',
+    conversations: (count: number) => `${count} remembered conversation${count === 1 ? '' : 's'}`,
+    ideas: (count: number) => `${count} idea${count === 1 ? '' : 's'}`,
+    decisions: (count: number) => `${count} decision${count === 1 ? '' : 's'}`,
+    followUps: (count: number) => `${count} follow-up${count === 1 ? '' : 's'}`,
+  },
+  ru: {
+    prefix: 'Недавний контекст',
+    empty: 'Недавний контекст появится здесь, когда Voxa поймет ваши воспоминания.',
+    conversations: (count: number) => `${count} ${pluralRu(count, 'разговор', 'разговора', 'разговоров')}`,
+    ideas: (count: number) => `${count} ${pluralRu(count, 'идея', 'идеи', 'идей')}`,
+    decisions: (count: number) => `${count} ${pluralRu(count, 'решение', 'решения', 'решений')}`,
+    followUps: (count: number) => `${count} ${pluralRu(count, 'продолжение', 'продолжения', 'продолжений')}`,
+  },
+  es: {
+    prefix: 'Contexto reciente',
+    empty: 'El contexto reciente aparecerá aquí cuando Voxa entienda tus recuerdos.',
+    conversations: (count: number) => `${count} conversación${count === 1 ? '' : 'es'} recordada${count === 1 ? '' : 's'}`,
+    ideas: (count: number) => `${count} idea${count === 1 ? '' : 's'}`,
+    decisions: (count: number) => `${count} decisión${count === 1 ? '' : 'es'}`,
+    followUps: (count: number) => `${count} seguimiento${count === 1 ? '' : 's'}`,
+  },
+};
+
+function pluralRu(count: number, one: string, few: string, many: string) {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
 }
 
 function formatIsoDate(date: Date) {
@@ -391,25 +449,10 @@ const styles = StyleSheet.create({
   disabledText: {
     opacity: 0.55,
   },
-  statGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  statItem: {
-    width: '47%',
-    gap: 2,
-  },
-  statValue: {
-    color: palette.text,
-    fontSize: 28,
-    lineHeight: 34,
-    fontWeight: '900',
-  },
-  statLabel: {
+  quietSummary: {
     color: palette.textSecondary,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 15,
+    lineHeight: 22,
     fontWeight: '700',
   },
   digestPreview: {

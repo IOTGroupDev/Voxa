@@ -8,6 +8,11 @@ export interface OfflineSyncResult {
   attempted: number;
   completed: number;
   failed: number;
+  errors: Array<{
+    uploadId: string;
+    recordingSessionId: string;
+    message: string;
+  }>;
 }
 
 export class OfflineSyncCoordinator {
@@ -20,6 +25,7 @@ export class OfflineSyncCoordinator {
     const items = await this.uploadQueue.list();
     let completed = 0;
     let failed = 0;
+    const errors: OfflineSyncResult['errors'] = [];
 
     for (const item of items) {
       await this.uploadQueue.markAttempt(item.id);
@@ -49,8 +55,13 @@ export class OfflineSyncCoordinator {
         await this.memoryStore.markSynced(item.recordingSessionId);
         await this.uploadQueue.remove(item.id);
         completed += 1;
-      } catch {
+      } catch (error) {
         failed += 1;
+        errors.push({
+          uploadId: item.id,
+          recordingSessionId: item.recordingSessionId,
+          message: error instanceof Error ? error.message : 'Unknown upload sync error',
+        });
       }
     }
 
@@ -58,6 +69,7 @@ export class OfflineSyncCoordinator {
       attempted: items.length,
       completed,
       failed,
+      errors,
     };
   }
 }

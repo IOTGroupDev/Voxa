@@ -1,4 +1,5 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 
 export interface AuthenticatedUser {
@@ -6,15 +7,12 @@ export interface AuthenticatedUser {
   email?: string;
 }
 
-const SUPABASE_URL = process.env.SUPABASE_URL; // https://ntzdzhzltyzmavfmxjvy.supabase.co
-
-const JWKS = createRemoteJWKSet(
-    new URL(`${SUPABASE_URL}/auth/v1/.well-known/jwks.json`)
-);
-
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+
+  constructor(private readonly configService: ConfigService) {}
 
   async verifySupabaseJwt(token?: string): Promise<AuthenticatedUser> {
     if (!token) {
@@ -23,8 +21,9 @@ export class AuthService {
     }
 
     try {
-      const { payload } = await jwtVerify(token, JWKS, {
-        issuer: `${SUPABASE_URL}/auth/v1`,
+      const supabaseUrl = this.getSupabaseUrl();
+      const { payload } = await jwtVerify(token, this.getJwks(), {
+        issuer: `${supabaseUrl}/auth/v1`,
         audience: 'authenticated',
       });
 
@@ -45,5 +44,23 @@ export class AuthService {
       this.logger.warn(`Rejected invalid bearer token: ${error instanceof Error ? error.message : 'unknown error'}`);
       throw new UnauthorizedException('Invalid bearer token.');
     }
+  }
+
+  private getJwks() {
+    if (!this.jwks) {
+      const supabaseUrl = this.getSupabaseUrl();
+      this.jwks = createRemoteJWKSet(new URL(`${supabaseUrl}/auth/v1/.well-known/jwks.json`));
+    }
+
+    return this.jwks;
+  }
+
+  private getSupabaseUrl() {
+    const supabaseUrl = this.configService.get<string>('SUPABASE_URL')?.replace(/\/$/, '');
+    if (!supabaseUrl) {
+      throw new Error('SUPABASE_URL is required for JWT verification.');
+    }
+
+    return supabaseUrl;
   }
 }

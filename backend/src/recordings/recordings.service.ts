@@ -1,12 +1,21 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
+  CaptureSource,
   DongleRecordingSyncStatus,
   CreateRecordingDto,
   DeviceStatus,
+  RecordingStatus,
   RegisterDongleRecordingMetadataDto,
   UpdateDongleRecordingSyncStatusDto,
   UpdateRecordingStatusDto,
 } from '@voxa/shared';
+import {
+  assertEnumValue,
+  assertOptionalNonNegativeInteger,
+  assertOptionalString,
+  assertPlainObject,
+  assertRequiredString,
+} from '../common/body-validation';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 
@@ -20,6 +29,7 @@ export class RecordingsService {
   ) {}
 
   async create(supabaseUserId: string, email: string | undefined, dto: CreateRecordingDto) {
+    this.validateCreateRecording(dto);
     const user = await this.upsertUser(supabaseUserId, email);
     const recordingId = crypto.randomUUID();
     this.logger.log(
@@ -49,6 +59,7 @@ export class RecordingsService {
   }
 
   async updateStatus(supabaseUserId: string, id: string, dto: UpdateRecordingStatusDto) {
+    this.validateUpdateStatus(dto);
     const recording = await this.findOwnedRecording(supabaseUserId, id);
     this.logger.log(`Updating recording status recordingId=${recording.id} status=${dto.status}`);
 
@@ -323,6 +334,7 @@ export class RecordingsService {
   }
 
   private validateDongleMetadata(dto: RegisterDongleRecordingMetadataDto) {
+    assertPlainObject(dto, 'RegisterDongleRecordingMetadataDto');
     this.requireNonEmptyString(dto.deviceId, 'deviceId');
     this.requireNonEmptyString(dto.localRecordingId, 'localRecordingId');
     this.requireNonEmptyString(dto.codec, 'codec');
@@ -347,12 +359,26 @@ export class RecordingsService {
   }
 
   private validateDongleSyncStatus(dto: UpdateDongleRecordingSyncStatusDto) {
+    assertPlainObject(dto, 'UpdateDongleRecordingSyncStatusDto');
     this.requireNonEmptyString(dto.deviceId, 'deviceId');
     this.requireNonEmptyString(dto.localRecordingId, 'localRecordingId');
 
     if (!Object.values(DongleRecordingSyncStatus).includes(dto.syncStatus)) {
       throw new BadRequestException('syncStatus is invalid.');
     }
+  }
+
+  private validateCreateRecording(dto: CreateRecordingDto) {
+    assertPlainObject(dto, 'CreateRecordingDto');
+    assertEnumValue(CaptureSource, dto.source, 'source');
+    assertOptionalString(dto.deviceId, 'deviceId');
+    assertRequiredString(dto.mimeType, 'mimeType');
+    assertOptionalNonNegativeInteger(dto.durationMs, 'durationMs');
+  }
+
+  private validateUpdateStatus(dto: UpdateRecordingStatusDto) {
+    assertPlainObject(dto, 'UpdateRecordingStatusDto');
+    assertEnumValue(RecordingStatus, dto.status, 'status');
   }
 
   private requireNonEmptyString(value: unknown, fieldName: string) {

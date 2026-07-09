@@ -32,7 +32,7 @@ This scaffold follows `docs/CODEX_TASK.md` as the source of truth.
 
 ## Risks And Unknowns
 
-- Mobile is pinned to Expo SDK 56, which satisfies the SDK 54+ requirement and avoids stale React Native peer conflicts.
+- Mobile is pinned to Expo SDK 54 (`expo ~54.0.35`), which satisfies the SDK 54+ requirement and avoids stale React Native peer conflicts.
 - Production Bluetooth microphone routing may require native modules and platform-specific behavior.
 - Supabase RLS policies need to be implemented as SQL migrations, not only documented.
 - pgvector embedding dimensions must be chosen before adding production indexes.

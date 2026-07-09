@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
-import { supabase } from '../supabase/client';
+import { clearSupabaseAuthStorage, supabase } from '../supabase/client';
+import { getErrorMessage, isInvalidRefreshTokenError } from '../supabase/auth-errors';
 import { createApiClient } from './client';
 
 function getDefaultApiBaseUrl() {
@@ -21,7 +22,16 @@ function getDefaultApiBaseUrl() {
 export const apiClient = createApiClient({
   baseUrl: getDefaultApiBaseUrl(),
   async getAccessToken() {
-    const { data } = await supabase.auth.getSession();
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      if (isInvalidRefreshTokenError(error)) {
+        await clearSupabaseAuthStorage();
+        throw new Error('Your session expired. Please sign in again.');
+      }
+
+      throw new Error(`Could not read Supabase session: ${getErrorMessage(error)}`);
+    }
+
     return data.session?.access_token ?? null;
   },
 });
